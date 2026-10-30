@@ -23,6 +23,10 @@ Hoặc mở hai terminal: `npm start` (backend cổng 3001) và `npm run dev` (V
 - Kết thúc trận, cả hai người chơi phải đồng ý tái đấu. Người xem tiếp tục ở cùng phòng.
 - Phòng lưu trong RAM một tiến trình, mất khi server restart/ngủ/redeploy. Chưa có tài khoản, xác minh danh tính hay cơ sở dữ liệu; ai có mã có thể vào phòng. Không chạy nhiều instance độc lập nếu chưa bổ sung shared state và routing.
 
+## Aim guide
+
+Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Lựa chọn được ghi nhớ trên trình duyệt.
+
 ## Góc nhìn và bàn lớn
 
 Bàn hiển thị lớn hơn mặc định. Nút bốn góc **Mở rộng bàn** dùng toàn bộ chiều rộng và vẫn giữ bảng điểm, lực đánh, xoáy. Các nút **+ / −** phóng to/thu nhỏ; **R** đặt lại camera. Giữ **W** tiến góc nhìn, **S** lùi, **A/D** sang trái/phải theo hướng camera hiện tại. Các phím chỉ điều khiển camera riêng của bạn, không di chuyển bi hoặc ảnh hưởng người chơi khác. Khi nhập tên, mở hộp thoại hoặc ở sảnh, các phím này dành cho việc nhập liệu.
@@ -69,7 +73,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 10 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 11 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 

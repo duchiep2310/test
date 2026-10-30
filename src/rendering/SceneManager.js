@@ -112,13 +112,37 @@ export class SceneManager {
       m.position.set(x, 0.055, 0);
       m.castShadow = true;
       this.cue.add(m);
+      return m;
     };
     section(0.012, 0.022, 0.92, -0.66, maple);
     section(0.022, 0.031, 0.58, -1.41, ebony);
     section(0.012, 0.012, 0.055, -0.172, ferrule);
-    section(0.013, 0.013, 0.016, -0.136, tip);
+    this.cueTip = section(0.013, 0.013, 0.016, -0.136, tip);
   }
   buildGuide() {
+    // This short alignment segment is independent of trajectory predictions.
+    this.cueGapPositions = new Float32Array(6);
+    this.cueGapGeometry = new THREE.BufferGeometry();
+    this.cueGapGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(this.cueGapPositions, 3),
+    );
+    this.cueGapLine = new THREE.Line(
+      this.cueGapGeometry,
+      new THREE.LineDashedMaterial({
+        color: "#fff4ce",
+        dashSize: 0.025,
+        gapSize: 0.018,
+        transparent: true,
+        opacity: 0.85,
+        depthTest: false,
+      }),
+    );
+    this.cueGapLine.frustumCulled = false;
+    this.cueGapLine.renderOrder = 2;
+    this.cueGapLine.visible = false;
+    this.cueGapStart = new THREE.Vector3();
+    this.scene.add(this.cueGapLine);
     this.guideGroup = new THREE.Group();
     this.scene.add(this.guideGroup);
     this.guideGeometry = new THREE.BufferGeometry();
@@ -210,6 +234,7 @@ export class SceneManager {
       (b) => b.id === this.cueId && b.active !== false,
     );
     this.guideGroup.visible = Boolean(cue && this.showAim && this.aimGuide);
+    this.cueGapLine.visible = Boolean(cue && this.showAim && !this.aimGuide);
     this.cue.visible = Boolean((cue && this.showAim) || this.shooting > 0);
     this.ballRenderer.cueHalo.visible = Boolean(cue && this.showAim);
     if (!cue) return;
@@ -219,6 +244,23 @@ export class SceneManager {
     if (this.showAim) {
       this.cue.position.set(cue.x - dx * pull, 0.014, cue.z - dz * pull);
       this.cue.rotation.y = -this.angle;
+    }
+    if (this.cueGapLine.visible) {
+      // Cylinder local -Y is the tip face nearest the cue ball.
+      this.cueTip.localToWorld(
+        this.cueGapStart.set(0, -this.cueTip.geometry.parameters.height / 2, 0),
+      );
+      const radius = cue.radius || TABLE.radius;
+      this.cueGapPositions.set([
+        this.cueGapStart.x,
+        this.cueGapStart.y,
+        this.cueGapStart.z,
+        cue.x - dx * radius,
+        radius + 0.008,
+        cue.z - dz * radius,
+      ]);
+      this.cueGapGeometry.attributes.position.needsUpdate = true;
+      this.cueGapLine.computeLineDistances();
     }
     if (!this.guideGroup.visible) return;
     let t = Infinity,

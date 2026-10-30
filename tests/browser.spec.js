@@ -309,3 +309,80 @@ test("larger table, WASD camera movement, deep zoom and reset work without movin
   ).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test("disabled aim guide shows only the cue-tip to cue-ball segment and remembers the setting", async ({
+  page,
+}) => {
+  await offline(page);
+  await page.locator("#guide-toggle").click();
+  await expect(page.locator("#guide-toggle")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await page.waitForFunction(
+    () =>
+      window.__game.scene.cueGapLine.visible &&
+      !window.__game.scene.guideGroup.visible,
+  );
+  const checks = await page.evaluate(() => {
+    const g = window.__game,
+      scene = g.scene;
+    return [0, Math.PI / 2, -Math.PI / 3].flatMap((angle) =>
+      [0.15, 0.85].map((power) => {
+        g.angle = angle;
+        g.power = power;
+        g.render(0.016);
+        const p = scene.cueGapPositions,
+          cue = g.cue,
+          r = cue.radius,
+          tip = scene.cueTip.localToWorld(
+            scene.cueGapStart
+              .clone()
+              .set(0, -scene.cueTip.geometry.parameters.height / 2, 0),
+          );
+        return {
+          visible: scene.cueGapLine.visible,
+          predictions: scene.guideGroup.visible,
+          startError: Math.hypot(p[0] - tip.x, p[1] - tip.y, p[2] - tip.z),
+          endError: Math.abs(Math.hypot(p[3] - cue.x, p[5] - cue.z) - r),
+          behind:
+            (p[3] - cue.x) * Math.cos(angle) + (p[5] - cue.z) * Math.sin(angle),
+          length: Math.hypot(p[3] - p[0], p[5] - p[2]),
+        };
+      }),
+    );
+  });
+  for (const c of checks) {
+    expect(c.visible).toBe(true);
+    expect(c.predictions).toBe(false);
+    expect(c.startError).toBeLessThan(1e-6);
+    expect(c.endError).toBeLessThan(1e-6);
+    expect(c.behind).toBeLessThan(0);
+    expect(c.length).toBeGreaterThan(0);
+    expect(c.length).toBeLessThan(0.6);
+  }
+  await page.locator("#guide-toggle").click();
+  await page.waitForFunction(
+    () =>
+      window.__game.scene.guideGroup.visible &&
+      !window.__game.scene.cueGapLine.visible,
+  );
+  await page.locator("#guide-toggle").click();
+  await page.locator("#pause").click();
+  await page.waitForFunction(() => !window.__game.scene.cueGapLine.visible);
+  await page.locator("#pause").click();
+  await page.waitForFunction(() => window.__game.scene.cueGapLine.visible);
+  await page.reload();
+  await page.locator("#play-local").click();
+  await expect(page.locator("#guide-toggle")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await page.waitForFunction(() => window.__game.scene.cueGapLine.visible);
+  await page.locator("#shoot").click();
+  await page.waitForFunction(
+    () =>
+      !window.__game.scene.cueGapLine.visible &&
+      !window.__game.scene.guideGroup.visible,
+  );
+});

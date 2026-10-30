@@ -127,6 +127,14 @@ function update(g) {
   const mode = MODES.find((m) => m.id === g.mode.id);
   const d = g.mode.display(g.physics.balls);
   const active = g.mode.currentPlayer;
+  $("#guide-toggle .mini-toggle").classList.toggle(
+    "on",
+    Boolean(g.settings.aimGuide),
+  );
+  $("#guide-toggle").setAttribute(
+    "aria-pressed",
+    String(Boolean(g.settings.aimGuide)),
+  );
   if (camera !== g.scene.view) {
     camera = g.scene.view;
     $("#camera").innerHTML = icon(camera === "angle" ? "top" : "angle", 18);
