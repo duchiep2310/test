@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: velvet-billiards
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: MAX_ROOMS
+        value: "100"
+      - key: MAX_SPECTATORS
+        value: "200"
+      - key: ALLOWED_ORIGINS
+        value: https://duchiep2310.github.io

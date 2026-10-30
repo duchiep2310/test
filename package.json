@@ -7,14 +7,20 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/physics.test.js && node tests/rules.test.js && node tests/ai.test.js",
-    "test:browser": "playwright test"
+    "test": "node tests/physics.test.js && node tests/rules.test.js && node tests/ai.test.js && node tests/rooms.test.js",
+    "test:browser": "playwright test",
+    "start": "node server/index.js",
+    "dev:online": "node scripts/dev-online.mjs"
   },
   "dependencies": {
-    "three": "0.180.0"
+    "three": "0.180.0",
+    "ws": "8.22.0"
   },
   "devDependencies": {
-    "vite": "7.1.12",
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.56.1",
+    "vite": "7.1.12"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

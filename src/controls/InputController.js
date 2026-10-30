@@ -85,10 +85,14 @@ export class InputController {
     );
     on(window, "keydown", (e) => {
       if (
-        e.target.matches("input,select,textarea") ||
+        game.lobbyOpen ||
+        e.target.matches(
+          "input,select,textarea,[contenteditable=true]",
+        ) ||
         document.querySelector("dialog[open]")
       )
         return;
+      if (e.code === "Space" && e.target.closest("button,a")) return;
       if (e.code === "Space") {
         e.preventDefault();
         game.shoot();

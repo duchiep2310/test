@@ -1,4 +1,5 @@
 import "./styles/main.css";
+import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
 
@@ -56,6 +57,15 @@ app.innerHTML = `
 <dialog id="modal"><div class="modal-header"><div><div class="eyebrow">VELVET BILLIARDS CLUB</div><h2 id="modal-title"></h2></div><button class="icon-button" id="close-modal" aria-label="Close dialog">${icon("close")}</button></div><div id="modal-body"></div></dialog>`;
 
 let game;
+let lobby = null;
+const escapeHtml = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
 let camera = "angle";
 let lastPlayerHtml = "";
 let lastTargets = "";
@@ -120,7 +130,11 @@ function update(g) {
   text("#mode-title", mode.name);
   text(
     "#match-type",
-    g.settings.opponent === "ai" ? "VS. THE HOUSE" : "LOCAL MATCH",
+    g.online
+      ? "PHÒNG " + g.online.roomId
+      : g.settings.opponent === "ai"
+        ? "VS. THE HOUSE"
+        : "LOCAL MATCH",
   );
   text("#clock", formatTime(g.elapsed));
   text("#power-value", Math.round(g.power * 100));
@@ -133,12 +147,12 @@ function update(g) {
       ? "BREAK SHOT"
       : g.mode.pockets
         ? "RACE TO THE LAST"
-        : "RACE TO " + g.settings.targetScore,
+        : "RACE TO " + g.mode.targetScore,
   );
   const phtml = [0, 1]
     .map(
       (p) =>
-        `<div class="player-card ${p === active ? "is-active" : ""}"><div class="player-avatar ${p === 1 ? "second" : ""}">${p === 1 && g.settings.opponent === "ai" ? "AI" : `0${p + 1}`}</div><div class="player-info"><strong>${p === 1 && g.settings.opponent === "ai" ? "The house" : `Player ${p + 1}`} ${p === active ? '<span class="turn-dot"></span>' : ""}</strong><span>${d.players?.[p]?.detail || d.players?.[p]?.label || "Ready to play"}</span></div><div class="player-score">${g.mode.scores[p]}<small>${g.mode.pockets ? "POTTED" : "POINTS"}</small></div></div>`,
+        `<div class="player-card ${p === active ? "is-active" : ""}"><div class="player-avatar ${p === 1 ? "second" : ""}">${!g.online && p === 1 && g.settings.opponent === "ai" ? "AI" : `0${p + 1}`}</div><div class="player-info"><strong>${escapeHtml(g.playerName(p))} ${p === active ? '<span class="turn-dot"></span>' : ""}</strong><span>${d.players?.[p]?.detail || d.players?.[p]?.label || "Ready to play"}</span></div><div class="player-score">${g.mode.scores[p]}<small>${g.mode.pockets ? "POTTED" : "POINTS"}</small></div></div>`,
     )
     .join("");
   if (phtml !== lastPlayerHtml) {
@@ -185,6 +199,22 @@ function update(g) {
     shoot.innerHTML = `<span>${g.state === "BALL_IN_HAND" ? "Place the cue ball" : g.state === "PAUSED" ? "Game paused" : g.state === "GAME_OVER" ? "Match complete" : g.isAI ? "The house is thinking…" : "Balls in motion…"}</span>`;
   else
     shoot.innerHTML = `<span>${(labels[g.settings.language] || labels.en).shoot}</span>${icon("arrow", 21)}`;
+  if (g.online && !g.canShoot)
+    shoot.textContent = !g.online.connected
+      ? "Đang kết nối lại…"
+      : g.online.seat == null
+        ? "Bạn đang xem trận đấu"
+        : !g.online.info?.ready
+          ? "Đang chờ đối thủ…"
+          : g.state === "GAME_OVER"
+            ? "Trận đã kết thúc"
+            : g.state === "PAUSED"
+              ? "Trận đang tạm dừng"
+              : ["SHOT_IN_PROGRESS", "BALLS_SETTLING"].includes(g.state)
+                ? "Bi đang lăn…"
+                : g.state === "BALL_IN_HAND"
+                  ? "Đặt bi cái lên bàn"
+                  : "Chờ lượt của bạn";
   const needsCall =
     !g.mode.isBreak &&
     (g.mode.id === "ten" || (g.mode.id === "eight" && targets.includes(8)));
@@ -249,16 +279,53 @@ function update(g) {
     b.classList.toggle("selected", b.dataset.mode === g.mode.id);
     b.setAttribute("aria-pressed", b.dataset.mode === g.mode.id);
   });
+  if (g.online) {
+    const blocked = !g.online.connected || !g.online.info?.ready;
+    if (blocked) {
+      $("#table-state").hidden = false;
+      $("#table-state").className = "table-state placement";
+      text(
+        "#table-state",
+        !g.online.connected
+          ? "Mất kết nối · đang thử kết nối lại"
+          : "Đang chờ đủ hai người chơi · chia sẻ mã phòng để mời bạn",
+      );
+    }
+    for (const el of document.querySelectorAll(
+      "#power,#spin-pad,#reset-spin,#call-ball,[data-pocket]",
+    )) {
+      if ("disabled" in el) el.disabled = !g.online.canAct;
+    }
+    $("#pause").disabled = g.online.seat == null || blocked;
+    $("#restart").disabled =
+      g.online.seat == null || g.state !== "GAME_OVER" || blocked;
+    document
+      .querySelectorAll("[data-mode]")
+      .forEach((b) => (b.disabled = true));
+  } else {
+    document
+      .querySelectorAll(
+        "#power,#reset-spin,#call-ball,[data-pocket],#pause,#restart,[data-mode]",
+      )
+      .forEach((b) => (b.disabled = false));
+  }
+  lobby?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
   }
-  if (g.state !== "GAME_OVER") resultShown = false;
+  if (g.state !== "GAME_OVER" && resultShown) {
+    resultShown = false;
+    if ($("#modal-title").textContent === "A game well played.")
+      $("#modal").close();
+  }
 }
 try {
   game = new Game($("#scene"), update);
   window.__game = game;
   translate();
+  lobby = new RoomLobby(game);
+  window.__lobby = lobby;
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;
@@ -293,6 +360,11 @@ function startMode(id) {
   closeModal();
 }
 function confirmRestart(id = game.mode.id) {
+  if (game.online) {
+    game.online.rematch();
+    closeModal();
+    return;
+  }
   if (game.shots === 0) {
     startMode(id);
     return;
@@ -391,13 +463,13 @@ document.querySelectorAll("[data-pocket]").forEach(
     }),
 );
 $("#nav-play").onclick = () => {
-  $("#play-area").scrollIntoView({ behavior: "smooth", block: "center" });
+  lobby?.show();
 };
 $(".brand").onclick = (e) => {
   e.preventDefault();
-  showNewMatch();
+  lobby?.show();
 };
-$("#new-match").onclick = showNewMatch;
+$("#new-match").onclick = () => lobby?.show();
 function showNewMatch() {
   showModal(
     "Make it your game.",
@@ -468,6 +540,12 @@ function settings() {
       else el.value = s[el.name];
     }
   }
+  if (game.online)
+    for (const name of ["opponent", "targetScore"]) {
+      form.elements[name].disabled = true;
+      form.elements[name].title =
+        "Rời phòng online để thay đổi thiết lập trận.";
+    }
   form.onsubmit = (e) => {
     e.preventDefault();
     const values = {};
@@ -479,6 +557,10 @@ function settings() {
           : el.type === "range" || el.name === "targetScore"
             ? Number(el.value)
             : el.value;
+    }
+    if (game.online) {
+      delete values.opponent;
+      delete values.targetScore;
     }
     game.setSettings(values);
     translate();
@@ -492,14 +574,22 @@ function settings() {
 $("#settings").onclick = settings;
 function showResult() {
   if (game.state !== "GAME_OVER") return;
-  const winner =
-    game.mode.winner === 1 && game.settings.opponent === "ai"
-      ? "The house"
-      : `Player ${game.mode.winner + 1}`;
+  const winner = escapeHtml(game.playerName(game.mode.winner));
   showModal(
     "A game well played.",
     `<div class="result-content"><div class="result-trophy">${icon("trophy", 45)}</div><div class="eyebrow">${MODES.find((m) => m.id === game.mode.id).name.toUpperCase()}</div><h3>${winner} wins.</h3><p>${game.message}</p><div class="result-stats"><span><strong>${game.mode.scores[0]} — ${game.mode.scores[1]}</strong>FINAL SCORE</span><span><strong>${formatTime(game.elapsed)}</strong>AT THE TABLE</span><span><strong>${game.shots}</strong>SHOTS PLAYED</span></div><div class="modal-buttons"><button class="secondary" id="result-menu">Main menu</button><button class="primary" id="result-replay">Play again ${icon("arrow", 18)}</button></div></div>`,
   );
   $("#result-replay").onclick = () => startMode(game.mode.id);
-  $("#result-menu").onclick = showNewMatch;
+  $("#result-menu").onclick = () => {
+    closeModal();
+    lobby?.show();
+  };
+  if (game.online) {
+    $("#result-replay").textContent =
+      game.online.seat == null ? "Về bàn xem" : "Đồng ý tái đấu";
+    $("#result-replay").onclick = () => {
+      if (game.online.seat != null) game.online.rematch();
+      closeModal();
+    };
+  }
 }

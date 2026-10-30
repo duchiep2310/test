@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+async function offline(page) {
+  await page.goto("/");
+  await page.locator("#play-local").click();
+}
 
 test("all five modes render, shoot through physics and reach the next playable turn", async ({
   page,
@@ -9,7 +13,7 @@ test("all five modes render, shoot through physics and reach the next playable t
   page.on("response", (r) => {
     if (r.status() >= 400) badResponses.push(r.url());
   });
-  await page.goto("/");
+  await offline(page);
   await expect(page.locator("#scene canvas")).toBeVisible();
   for (const [mode, count, pockets] of [
     ["eight", 16, true],
@@ -68,7 +72,7 @@ test("settings, spin, power, cameras, pause and mobile layout work", async ({
 }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.goto("/");
+  await offline(page);
   await page.locator("#power").fill("73");
   expect(await page.evaluate(() => window.__game.power)).toBe(0.73);
   await page.locator("#spin-pad").click({ position: { x: 40, y: 15 } });
@@ -109,7 +113,7 @@ test("settings, spin, power, cameras, pause and mobile layout work", async ({
 test("scratch triggers ball-in-hand, placement rejects overlap and accepts table click", async ({
   page,
 }) => {
-  await page.goto("/");
+  await offline(page);
   await page.evaluate(() => {
     const g = window.__game;
     g.loop.stop();
@@ -150,7 +154,7 @@ test("scratch triggers ball-in-hand, placement rejects overlap and accepts table
 test("called final eight is resolved from physical pocket events and saved to history", async ({
   page,
 }) => {
-  await page.goto("/");
+  await offline(page);
   await page.evaluate(() => {
     const g = window.__game;
     g.loop.stop();
@@ -184,7 +188,7 @@ test("called final eight is resolved from physical pocket events and saved to hi
 });
 
 test("AI takes the next turn using the same engine", async ({ page }) => {
-  await page.goto("/");
+  await offline(page);
   const outcome = await page.evaluate(() => {
     const g = window.__game;
     g.loop.stop();

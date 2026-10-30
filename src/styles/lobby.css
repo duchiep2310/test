@@ -1,0 +1,738 @@
+body.in-lobby #app > .site-header,
+body.in-lobby #app > main {
+  display: none;
+}
+.lobby-screen {
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at 75% 10%, #e8eddf70, transparent 45%), #f5f4ee;
+  color: #294238;
+}
+.lobby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 100px;
+  margin: auto;
+  padding: 0 5%;
+  max-width: 1500px;
+  border-bottom: 1px solid #dfe3d7;
+  gap: 20px;
+}
+.lobby-topline {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #8d9b82;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.lobby-topline i {
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: #6a8660;
+}
+.lobby-header .secondary {
+  font-size: 10px;
+  padding: 10px 14px;
+}
+.lobby-content {
+  max-width: 1300px;
+  padding: 50px 5% 30px;
+  margin: auto;
+  position: relative;
+}
+.lobby-content > h1 {
+  font:
+    50px Georgia,
+    "Times New Roman",
+    serif;
+  letter-spacing: -1.8px;
+  margin: 15px 0;
+  color: #2b493d;
+}
+.lobby-intro {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8e9c82;
+  margin: 0 0 30px;
+}
+.lobby-name {
+  position: absolute;
+  right: 5%;
+  top: 95px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: #8d9b80;
+  width: 220px;
+}
+.lobby-name input,
+.lobby-card input {
+  border: 1px solid #cdd8bf;
+  background: #fcfcf7;
+  color: #365239;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 13px;
+  letter-spacing: 0;
+  width: 100%;
+  outline-offset: 3px;
+}
+.lobby-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.lobby-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dce2d1;
+  background: #fafbf4;
+  border-radius: 10px;
+  padding: 26px;
+  position: relative;
+  overflow: hidden;
+}
+.lobby-card.featured {
+  background: linear-gradient(145deg, #eef3e6, #f9faf3);
+  border-color: #a1b38e;
+}
+.lobby-card-art {
+  height: 88px;
+  position: relative;
+  margin-bottom: 20px;
+}
+.lobby-ball {
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #575e50, #182c22 65%);
+  box-shadow:
+    inset -8px -8px 15px #0003,
+    0 7px 13px #4a612431;
+  color: #203428;
+  font: bold 25px Arial;
+  border: 0;
+}
+.lobby-ball.eight:after,
+.lobby-ball.striped:after {
+  position: absolute;
+  content: "";
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f8f7e9;
+  z-index: 0;
+}
+.lobby-ball.eight,
+.lobby-ball.striped {
+  font-size: 0;
+}
+.lobby-ball.eight:before {
+  content: "8";
+  font: bold 24px Arial;
+  position: absolute;
+  z-index: 1;
+}
+.lobby-ball.striped {
+  background: linear-gradient(
+    to bottom,
+    #f5f3e4 0% 24%,
+    #d0aa3e 25% 75%,
+    #f4f1df 76%
+  );
+}
+.lobby-ball.striped:before {
+  content: "9";
+  font: bold 24px Arial;
+  position: absolute;
+  z-index: 1;
+}
+.lobby-ball.white {
+  background: radial-gradient(circle at 30% 25%, #fffef1, #d5dcc6 75%);
+  width: 52px;
+  height: 52px;
+  top: 0;
+}
+.lobby-ball.gold {
+  background: radial-gradient(circle at 30% 25%, #edcf6c, #bd9732 75%);
+  width: 43px;
+  height: 43px;
+  left: 40px;
+  top: 32px;
+}
+.art-line {
+  position: absolute;
+  left: 84px;
+  right: 0;
+  height: 1px;
+  top: 34px;
+  background: linear-gradient(to right, #bac9a6, transparent);
+}
+.art-line:before {
+  content: "";
+  position: absolute;
+  height: 5px;
+  width: 5px;
+  border-radius: 50%;
+  background: #b9c8a6;
+  left: -2px;
+  top: -2px;
+}
+.art-caption {
+  position: absolute;
+  left: 85px;
+  top: 45px;
+  font-size: 6px;
+  letter-spacing: 1px;
+  color: #a9b598;
+}
+.art-spark {
+  font-size: 30px;
+  position: absolute;
+  left: 68px;
+  top: 0;
+  color: #ad975a;
+  z-index: 1;
+}
+.lobby-card-tag {
+  font-size: 7px;
+  letter-spacing: 1.1px;
+  color: #8da276;
+  font-weight: 600;
+}
+.lobby-card h2 {
+  font:
+    29px Georgia,
+    "Times New Roman",
+    serif;
+  letter-spacing: -0.6px;
+  margin: 12px 0 10px;
+}
+.lobby-card > p {
+  font-size: 10px;
+  line-height: 1.9;
+  color: #92a17f;
+  margin: 0 0 25px;
+  min-height: 38px;
+}
+.lobby-card > label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #8d9f79;
+  margin-bottom: 17px;
+}
+.lobby-card select {
+  font-size: 11px;
+  padding: 12px;
+  color: #4a6240;
+  background: #f4f6ed;
+  border-color: #d6dfc9;
+  width: 100%;
+  letter-spacing: 0;
+}
+.lobby-card button.full {
+  margin-top: auto;
+  text-align: left;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 14px 17px;
+  border-radius: 5px;
+}
+.lobby-card button:disabled {
+  opacity: 0.6;
+}
+.lobby-card button > span {
+  font-size: 18px;
+  font-weight: 400;
+}
+.lobby-card > small {
+  font-size: 8px;
+  line-height: 1.6;
+  color: #a0ad8e;
+  margin-top: 13px;
+  text-align: center;
+}
+.join-room-actions {
+  margin-top: auto;
+  display: grid;
+  gap: 10px;
+}
+.join-room-actions button.full {
+  margin-top: 0;
+}
+#room-code {
+  font-size: 18px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  padding: 12px 14px;
+  min-height: 46px;
+}
+#room-code::placeholder {
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: #bdc8ac;
+}
+#lobby-feedback {
+  border: 1px solid #cddbbb;
+  background: #edf3e3;
+  border-radius: 5px;
+  padding: 13px 17px;
+  font-size: 12px;
+  color: #607c49;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+#lobby-feedback.error {
+  border-color: #dfc4a6;
+  background: #faf0df;
+  color: #936d3e;
+}
+.lobby-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 25px;
+  gap: 20px;
+}
+.lobby-bottom > span {
+  font-size: 7px;
+  letter-spacing: 1px;
+  color: #a0ad8e;
+}
+.lobby-bottom i {
+  font-style: normal;
+  color: #b2bea2;
+  margin: 0 10px;
+}
+.lobby-bottom button {
+  border: 0;
+  background: none;
+  color: #6f885b;
+  font-size: 10px;
+  padding: 7px 0;
+}
+.lobby-footer {
+  max-width: 1170px;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  padding: 25px 0;
+  border-top: 1px solid #dfe4d3;
+  font-size: 9px;
+  color: #a6b293;
+  gap: 20px;
+}
+.lobby-footer > span:first-child {
+  letter-spacing: 1.6px;
+  font-size: 7px;
+}
+.invite-highlight {
+  box-shadow: 0 0 0 3px #a7bb8e55;
+}
+.online-room {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: #edf3e5;
+  border: 1px solid #ccd9bc;
+  border-radius: 7px;
+  padding: 17px 20px;
+  margin: 0 0 20px;
+}
+.room-code-block button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: 0;
+  color: #526e3c;
+  padding: 5px 0 0;
+}
+.room-code-block strong {
+  font-size: 22px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  font-family: monospace;
+}
+.room-code-block button > span {
+  font-size: 20px;
+  color: #84996b;
+}
+.room-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+}
+.room-meta strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: #617c4b;
+}
+.room-meta > span {
+  font-size: 9px;
+  color: #8fa078;
+}
+.room-spectators {
+  font-size: 10px;
+  white-space: nowrap;
+  color: #8b9f72;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.room-spectators > span {
+  font-size: 20px;
+  margin-right: 3px;
+}
+.room-banner-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.room-banner-actions .secondary,
+.room-banner-actions .primary {
+  font-size: 9px;
+  padding: 9px 11px;
+  white-space: nowrap;
+}
+.room-banner-actions .text-button {
+  margin-left: 10px;
+  font-size: 9px;
+  color: #9a896e;
+}
+#room-notice {
+  flex-basis: 100%;
+  font-size: 10px;
+  color: #8d7e54;
+  margin: 0;
+  line-height: 1.7;
+}
+.is-spectator .control-deck {
+  display: none;
+}
+.is-online button:disabled,
+.is-online input:disabled,
+.is-online select:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.is-online .mode-card:disabled {
+  opacity: 0.75;
+  transform: none;
+  filter: none;
+}
+.is-online .mode-card.selected:disabled {
+  opacity: 1;
+}
+@media (max-width: 1200px) {
+  .lobby-card {
+    padding: 22px;
+  }
+  .lobby-content {
+    padding-top: 40px;
+  }
+  .lobby-footer {
+    margin: 0 5%;
+  }
+  .online-room {
+    gap: 16px;
+  }
+  .room-meta {
+    min-width: 160px;
+  }
+  .room-banner-actions {
+    margin-left: auto;
+  }
+  .lobby-card > p br {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .lobby-header {
+    min-height: 85px;
+  }
+  .lobby-content > h1 {
+    font-size: 42px;
+  }
+  .lobby-intro {
+    font-size: 10px;
+  }
+  .lobby-name {
+    top: 80px;
+    width: 180px;
+  }
+  .lobby-grid {
+    gap: 12px;
+  }
+  .lobby-card {
+    padding: 18px;
+  }
+  .lobby-card h2 {
+    font-size: 25px;
+  }
+  .lobby-card-art {
+    height: 75px;
+    margin-bottom: 15px;
+  }
+  .lobby-card-tag {
+    font-size: 6px;
+  }
+  .lobby-card > p {
+    font-size: 9px;
+    min-height: 54px;
+  }
+  .lobby-card > small {
+    font-size: 7px;
+  }
+  .lobby-card select {
+    font-size: 10px;
+  }
+  .art-caption {
+    display: none;
+  }
+  .lobby-card button.full {
+    font-size: 10px;
+    padding: 13px;
+  }
+  .online-room {
+    gap: 15px;
+    padding: 15px;
+  }
+  .room-code-block strong {
+    font-size: 20px;
+  }
+  .room-meta {
+    flex: 1;
+  }
+  .room-banner-actions {
+    flex-basis: 100%;
+    border-top: 1px solid #d9e3cc;
+    padding-top: 12px;
+    justify-content: flex-end;
+  }
+  .room-banner-actions .text-button {
+    margin-left: auto;
+  }
+  .lobby-topline {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+}
+@media (max-width: 650px) {
+  .lobby-header {
+    min-height: 76px;
+    padding: 0 6%;
+  }
+  .lobby-topline {
+    display: none;
+  }
+  .lobby-header .brand > span:last-child {
+    font-size: 29px;
+  }
+  .lobby-content {
+    padding: 35px 6% 23px;
+  }
+  .lobby-content > h1 {
+    font-size: 36px;
+    letter-spacing: -1px;
+    margin: 13px 0;
+  }
+  .lobby-content > .eyebrow {
+    font-size: 6px;
+    letter-spacing: 1.2px;
+  }
+  .lobby-intro {
+    line-height: 1.9;
+    margin-bottom: 20px;
+    font-size: 10px;
+  }
+  .lobby-intro br {
+    display: none;
+  }
+  .lobby-name {
+    position: static;
+    width: 100%;
+    margin: 0 0 22px;
+  }
+  .lobby-name input {
+    padding: 11px;
+    font-size: 13px;
+  }
+  .lobby-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .lobby-card {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 15px;
+  }
+  .lobby-card > h2,
+  .lobby-card > p,
+  .lobby-card > small,
+  .lobby-card > .lobby-card-tag,
+  .lobby-card > .full,
+  .join-room-actions {
+    grid-column: 1/-1;
+  }
+  .lobby-card-art {
+    position: absolute;
+    right: 25px;
+    top: 24px;
+    width: 55px;
+    height: 55px;
+    margin: 0;
+    transform: scale(0.75);
+    transform-origin: top right;
+  }
+  .lobby-card-art .art-line,
+  .lobby-card-art .art-spark {
+    display: none;
+  }
+  .lobby-card > p {
+    font-size: 11px;
+    min-height: 0;
+    line-height: 1.8;
+    margin-bottom: 22px;
+  }
+  .lobby-card > p br {
+    display: block;
+  }
+  .lobby-card > h2 {
+    font-size: 28px;
+    margin-top: 12px;
+    padding-right: 45px;
+  }
+  .lobby-card > label {
+    font-size: 7px;
+    margin-bottom: 18px;
+  }
+  .lobby-card > small {
+    font-size: 8px;
+  }
+  .lobby-card > button.full {
+    font-size: 12px;
+    padding: 14px 17px;
+  }
+  .lobby-card select {
+    padding: 12px;
+    font-size: 11px;
+  }
+  .lobby-card > label:has(#room-code) {
+    grid-column: 1/-1;
+  }
+  .join-room-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .join-room-actions button.full {
+    font-size: 11px;
+    padding: 13px 11px;
+  }
+  .lobby-card-tag {
+    font-size: 6px;
+  }
+  .lobby-card.ai-card > p {
+    padding-right: 10px;
+  }
+  .lobby-bottom {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    text-align: center;
+  }
+  .lobby-bottom > span {
+    font-size: 6px;
+  }
+  .lobby-bottom > button {
+    font-size: 10px;
+  }
+  .lobby-footer {
+    margin: 0 6%;
+    font-size: 8px;
+    padding: 20px 0;
+  }
+  .lobby-footer > span:first-child {
+    font-size: 5px;
+    letter-spacing: 1px;
+  }
+  .lobby-footer > span:last-child {
+    font-size: 7px;
+    max-width: 150px;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .online-room {
+    gap: 14px;
+    padding: 13px;
+  }
+  .room-meta {
+    min-width: 140px;
+  }
+  .room-meta strong {
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  .room-meta > span {
+    font-size: 8px;
+    line-height: 1.5;
+  }
+  .room-spectators {
+    font-size: 9px;
+    margin-left: auto;
+  }
+  .room-code-block strong {
+    font-size: 20px;
+  }
+  .room-code-block .control-label {
+    font-size: 7px;
+  }
+  .room-banner-actions {
+    gap: 6px;
+  }
+  .room-banner-actions .secondary,
+  .room-banner-actions .primary {
+    font-size: 8px;
+    padding: 9px;
+  }
+  #room-notice {
+    font-size: 9px;
+  }
+}
+@media (max-width: 380px) {
+  .lobby-card {
+    padding: 20px;
+  }
+  .join-room-actions {
+    grid-template-columns: 1fr;
+  }
+  .lobby-card > p br {
+    display: none;
+  }
+  .lobby-header .secondary {
+    font-size: 8px;
+    padding: 9px;
+  }
+  .room-meta {
+    min-width: 110px;
+  }
+}

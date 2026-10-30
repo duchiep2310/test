@@ -54,6 +54,7 @@ export class Game {
     this.loop.start();
     this.visibility = () => {
       if (
+        !this.online &&
         document.hidden &&
         this.state !== S.PAUSED &&
         this.state !== S.GAME_OVER
@@ -63,6 +64,7 @@ export class Game {
     document.addEventListener("visibilitychange", this.visibility);
   }
   start(id = this.mode?.id || "eight") {
+    if (this.online) return this.online.rematch();
     this.state = S.GAME_SETUP;
     this.mode = createMode(id, {
       targetScore: Number(this.settings.targetScore),
@@ -95,9 +97,11 @@ export class Game {
     return this.physics.balls.find((b) => b.id === this.mode.cueId());
   }
   get isAI() {
+    if (this.online) return false;
     return this.settings.opponent === "ai" && this.mode.currentPlayer === 1;
   }
   get canShoot() {
+    if (this.online) return this.online.canShoot;
     return (
       [S.PLAYER_TURN, S.BREAK_SHOT].includes(this.state) &&
       !this.physics.isMoving() &&
@@ -115,6 +119,8 @@ export class Game {
     this.audio.play(event.type, event.strength ?? 0.5);
   }
   shoot(automatic = false) {
+    if (this.lobbyOpen) return false;
+    if (this.online) return this.online.shoot();
     if (!this.canShoot || (!automatic && this.isAI)) return false;
     const remaining = this.mode.legalTargets(this.physics.balls);
     if (
@@ -158,6 +164,7 @@ export class Game {
     return true;
   }
   fixedUpdate(dt) {
+    if (this.online || this.lobbyOpen) return;
     if (this.state === S.PAUSED || this.state === S.GAME_OVER) return;
     if ([S.SHOT_IN_PROGRESS, S.BALLS_SETTLING].includes(this.state)) {
       this.physics.step(dt);
@@ -254,6 +261,7 @@ export class Game {
     }
   }
   place(x, z, automatic = false) {
+    if (this.online) return this.online.place(x, z);
     if (!this.ballInHand || (!automatic && this.isAI)) return false;
     if (this.physics.placeBall(this.mode.cueId(), x, z)) {
       this.state = S.PLAYER_TURN;
@@ -268,6 +276,8 @@ export class Game {
     return false;
   }
   pause() {
+    if (this.lobbyOpen) return false;
+    if (this.online) return this.online.pause();
     if (this.state === S.PAUSED) {
       this.state = this.previousState;
       this.pausedTime += Date.now() - this.pauseStarted;
@@ -300,12 +310,18 @@ export class Game {
     this.notify();
   }
   render(dt) {
-    this.scene.sync(this.physics.balls, this.mode.cueId(), dt);
+    this.online?.update();
+    if (this.lobbyOpen) return;
+    this.scene.sync(
+      this.online?.renderBalls || this.physics.balls,
+      this.mode.cueId(),
+      dt,
+    );
     this.scene.setAim(
       this.angle,
       this.power,
       this.spin,
-      this.canShoot && !this.isAI,
+      this.online ? this.online.showAim : this.canShoot && !this.isAI,
     );
     this.scene.render();
     this.hudTimer = (this.hudTimer || 0) + dt;
@@ -322,10 +338,7 @@ export class Game {
       let list = JSON.parse(localStorage.getItem("velvet-history") || "[]");
       list.unshift({
         mode: MODES.find((m) => m.id === this.mode.id).name,
-        winner:
-          this.mode.winner === 1 && this.settings.opponent === "ai"
-            ? "The house"
-            : `Player ${this.mode.winner + 1}`,
+        winner: this.playerName(this.mode.winner),
         scores: this.mode.scores,
         duration: this.elapsed,
         date: new Date().toISOString(),
@@ -333,7 +346,16 @@ export class Game {
       localStorage.setItem("velvet-history", JSON.stringify(list.slice(0, 20)));
     } catch {}
   }
+  playerName(index) {
+    return this.online
+      ? this.online.info?.players[index]?.name ||
+          `Đang chờ người chơi ${index + 1}`
+      : index === 1 && this.settings.opponent === "ai"
+        ? "The house"
+        : `Player ${index + 1}`;
+  }
   get elapsed() {
+    if (this.online) return this.online.info?.elapsed || 0;
     return Math.max(
       0,
       Math.floor(
@@ -348,6 +370,7 @@ export class Game {
     );
   }
   dispose() {
+    this.online?.leave();
     this.loop.stop();
     this.scene.dispose();
     this.audio.dispose();
