@@ -23,6 +23,10 @@ Hoặc mở hai terminal: `npm start` (backend cổng 3001) và `npm run dev` (V
 - Kết thúc trận, cả hai người chơi phải đồng ý tái đấu. Người xem tiếp tục ở cùng phòng.
 - Phòng lưu trong RAM một tiến trình, mất khi server restart/ngủ/redeploy. Chưa có tài khoản, xác minh danh tính hay cơ sở dữ liệu; ai có mã có thể vào phòng. Không chạy nhiều instance độc lập nếu chưa bổ sung shared state và routing.
 
+## Góc nhìn và bàn lớn
+
+Bàn hiển thị lớn hơn mặc định. Nút bốn góc **Mở rộng bàn** dùng toàn bộ chiều rộng và vẫn giữ bảng điểm, lực đánh, xoáy. Các nút **+ / −** phóng to/thu nhỏ; **R** đặt lại camera. Giữ **W** tiến góc nhìn, **S** lùi, **A/D** sang trái/phải theo hướng camera hiện tại. Các phím chỉ điều khiển camera riêng của bạn, không di chuyển bi hoặc ảnh hưởng người chơi khác. Khi nhập tên, mở hộp thoại hoặc ở sảnh, các phím này dành cho việc nhập liệu.
+
 ## Tên người chơi
 
 Nhập tên ở sảnh hoặc chọn **Đặt / đổi tên người chơi**. Trong trận, dùng **Đổi tên** ở thanh phòng hoặc cuối trang. Chơi local có thể đặt tên riêng cho cả hai người; chơi AI dùng tên của bạn. Tên hỗ trợ tiếng Việt, tối đa 24 ký tự, được nhớ trên trình duyệt. Đổi tên online đồng bộ ngay cho đối thủ/khán giả và không đổi ghế, lượt hay điểm.
@@ -65,20 +69,20 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 9 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 10 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 
-| Thao tác          | Cách dùng                                                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ngắm              | Nhấn/kéo chuột trái hoặc ngón tay trên bàn                                                                                                        |
-| Lực đánh          | Thanh **Shot power**                                                                                                                              |
-| Đánh              | Nút **Take the shot** hoặc `Space`; desktop hỗ trợ giữ `Shift`, kéo xuống rồi thả                                                                 |
-| Xoáy              | Nhấn/kéo trên hình bi cái; khi được focus, dùng phím mũi tên và `Home` để đặt lại                                                                 |
-| Camera            | Nút camera đổi góc nghiêng/nhìn từ trên; kéo chuột phải hoặc `Alt` + kéo để xoay; cuộn để zoom; trên cảm ứng dùng hai ngón tay để xoay/pinch zoom |
-| Tạm dừng/tiếp tục | Nút pause hoặc `Esc`; chuyển tab tự tạm dừng khi chơi offline; trận online tiếp tục trên máy chủ                                                  |
-| Bi cái trong tay  | Nhấn một vị trí trống trong bàn, tránh lỗ và bi khác                                                                                              |
-| Gọi bi/lỗ         | Bảng **Call your shot** dưới bàn; 10-ball chọn cả bi và lỗ, cú kết thúc 8-ball chọn lỗ                                                            |
+| Thao tác          | Cách dùng                                                                                                                                                                                                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ngắm              | Nhấn/kéo chuột trái hoặc ngón tay trên bàn                                                                                                                                                                                                                                              |
+| Lực đánh          | Thanh **Shot power**                                                                                                                                                                                                                                                                    |
+| Đánh              | Nút **Take the shot** hoặc `Space`; desktop hỗ trợ giữ `Shift`, kéo xuống rồi thả                                                                                                                                                                                                       |
+| Xoáy              | Nhấn/kéo trên hình bi cái; khi được focus, dùng phím mũi tên và `Home` để đặt lại                                                                                                                                                                                                       |
+| Camera            | Nút camera đổi góc nghiêng/nhìn từ trên; kéo chuột phải hoặc `Alt` + kéo để xoay; cuộn hoặc phím **+ / −** để zoom sâu hơn; giữ **W/A/S/D** để di chuyển góc nhìn, **R** để về giữa bàn; nút **Mở rộng bàn** tăng diện tích hiển thị; trên cảm ứng dùng hai ngón tay để xoay/pinch zoom |
+| Tạm dừng/tiếp tục | Nút pause hoặc `Esc`; chuyển tab tự tạm dừng khi chơi offline; trận online tiếp tục trên máy chủ                                                                                                                                                                                        |
+| Bi cái trong tay  | Nhấn một vị trí trống trong bàn, tránh lỗ và bi khác                                                                                                                                                                                                                                    |
+| Gọi bi/lỗ         | Bảng **Call your shot** dưới bàn; 10-ball chọn cả bi và lỗ, cú kết thúc 8-ball chọn lỗ                                                                                                                                                                                                  |
 
 Đổi chế độ bằng thẻ phía trên hoặc **New match**. Trong **Settings**, chọn local/AI, độ khó Easy/Medium/Hard, chất lượng đồ họa, màu nỉ, kiểu bi, âm lượng, đường ngắm và ngôn ngữ. Tiếng Việt áp dụng cho các điều khiển chính; luật và bình luận vẫn bằng tiếng Anh. Điểm đích carom áp dụng từ trận mới.
 

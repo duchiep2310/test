@@ -40,9 +40,9 @@ app.innerHTML = `
 <section class="mode-grid" aria-label="Game modes">${MODES.map((m, i) => `<button class="mode-card ${i === 0 ? "selected" : ""}" data-mode="${m.id}" aria-pressed="${i === 0}">${modePicture(m.id)}<span class="mode-copy"><span class="mode-tag">${m.tag}</span><strong>${m.name}</strong></span><span class="mode-selected">${icon("check", 13)}</span></button>`).join("")}</section>
 <div class="game-layout" id="play-area">
 <section class="table-panel" aria-label="Billiards game">
-<div class="table-toolbar"><div class="table-title"><span class="green-dot"></span><strong id="mode-title">8-Ball Pool</strong><span class="separator">/</span><span id="match-type">LOCAL MATCH</span></div><div class="table-actions"><span class="match-clock">${icon("clock", 14)}<span id="clock">00:00</span></span><span class="small-divider"></span><button class="icon-button small" id="camera" aria-label="Switch to top view" title="Switch camera">${icon("top", 18)}</button><button class="icon-button small" id="pause" aria-label="Pause" title="Pause (Esc)">${icon("pause", 18)}</button><button class="icon-button small" id="restart" aria-label="Restart match" title="Restart">${icon("restart", 18)}</button></div></div>
+<div class="table-toolbar"><div class="table-title"><span class="green-dot"></span><strong id="mode-title">8-Ball Pool</strong><span class="separator">/</span><span id="match-type">LOCAL MATCH</span></div><div class="table-actions"><span class="match-clock">${icon("clock", 14)}<span id="clock">00:00</span></span><span class="small-divider"></span><button class="icon-button small" id="zoom-out" aria-label="Thu nhỏ bàn" title="Thu nhỏ (−)">−</button><button class="icon-button small" id="zoom-in" aria-label="Phóng to bàn" title="Phóng to (+)">+</button><button class="icon-button small" id="reset-camera" aria-label="Đặt lại góc nhìn" title="Đặt lại góc nhìn (R)">${icon("restart", 16)}</button><button class="icon-button small" id="expand-table" aria-label="Mở rộng bàn" aria-pressed="false" title="Mở rộng bàn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m6 0h6v-6"/></svg></button><button class="icon-button small" id="camera" aria-label="Switch to top view" title="Switch camera">${icon("top", 18)}</button><button class="icon-button small" id="pause" aria-label="Pause" title="Pause (Esc)">${icon("pause", 18)}</button><button class="icon-button small" id="restart" aria-label="Restart match" title="Restart">${icon("restart", 18)}</button></div></div>
 <div class="table-stage" id="scene"><div class="canvas-label">VELVET <span>TABLE Nº 01</span></div><div id="table-state" class="table-state" hidden></div><div class="table-watermark">PRECISION IS A PRACTICE.</div><div id="render-error" hidden></div></div>
-<div class="table-footer"><span><span class="key-dot"></span><span id="input-tip" data-i18n="aimtip">Drag on the table to aim</span></span><span class="desktop-tip">Right-drag to orbit <span>·</span> Scroll to zoom</span><button id="guide-toggle" class="text-button">Aim guide <span class="mini-toggle on"></span></button></div>
+<div class="table-footer"><span><span class="key-dot"></span><span id="input-tip" data-i18n="aimtip">Drag on the table to aim</span></span><span class="desktop-tip">WASD di chuyển <span>·</span> + / − zoom <span>·</span> R đặt lại</span><button id="guide-toggle" class="text-button">Aim guide <span class="mini-toggle on"></span></button></div>
 </section>
 <aside class="match-sidebar"><div class="sidebar-heading"><span data-i18n="match">THE MATCH</span><span class="tiny-badge" id="round-label">OPEN TABLE</span></div><div id="player-cards"></div>
 <div class="objective"><span class="eyebrow" data-i18n="objective">ON THE TABLE</span><h3 id="objective-title">Break the ice.</h3><p id="objective-text">Hit the rack to start. The table stays open after the break.</p><div id="target-balls" class="target-balls"></div><div id="cushion-counter" hidden></div></div>
@@ -92,7 +92,7 @@ const labels = {
     power: "SHOT POWER",
     shoot: "Take the shot",
     reset: "Reset spin",
-    aimtip: "Drag on the table to aim",
+    aimtip: "Drag to aim · WASD to move view",
   },
   vi: {
     play: "Chơi",
@@ -107,7 +107,7 @@ const labels = {
     power: "LỰC ĐÁNH",
     shoot: "Đánh bi",
     reset: "Đặt lại xoáy",
-    aimtip: "Kéo trên bàn để ngắm",
+    aimtip: "Kéo để ngắm · WASD di chuyển",
   },
 };
 function translate() {
@@ -127,6 +127,14 @@ function update(g) {
   const mode = MODES.find((m) => m.id === g.mode.id);
   const d = g.mode.display(g.physics.balls);
   const active = g.mode.currentPlayer;
+  if (camera !== g.scene.view) {
+    camera = g.scene.view;
+    $("#camera").innerHTML = icon(camera === "angle" ? "top" : "angle", 18);
+    $("#camera").setAttribute(
+      "aria-label",
+      `Switch to ${camera === "angle" ? "top" : "angled"} view`,
+    );
+  }
   text("#mode-title", mode.name);
   text(
     "#match-type",
@@ -386,8 +394,29 @@ $("#shoot").onclick = () => game.shoot();
 $("#pause").onclick = () => game.pause();
 $("#restart").onclick = () => confirmRestart();
 $("#power").oninput = (e) => game.setPower(e.target.value / 100);
+$("#zoom-in").onclick = () => game.scene.zoom(-1);
+$("#zoom-out").onclick = () => game.scene.zoom(1);
+$("#reset-camera").onclick = () => {
+  game.scene.resetCamera();
+  camera = "angle";
+  $("#camera").innerHTML = icon("top", 18);
+  $("#camera").setAttribute("aria-label", "Switch to top view");
+};
+$("#expand-table").onclick = () => {
+  const expanded = document.body.classList.toggle("table-expanded");
+  $("#expand-table").setAttribute("aria-pressed", String(expanded));
+  $("#expand-table").setAttribute(
+    "aria-label",
+    expanded ? "Thu gọn bàn" : "Mở rộng bàn",
+  );
+  requestAnimationFrame(() => {
+    game.scene.resize();
+    if (expanded)
+      $("#play-area").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+};
 $("#camera").onclick = () => {
-  camera = camera === "angle" ? "top" : "angle";
+  camera = game.scene.view === "angle" ? "top" : "angle";
   game.scene.setView(camera);
   $("#camera").innerHTML = icon(camera === "angle" ? "top" : "angle", 18);
   $("#camera").setAttribute(
@@ -493,7 +522,7 @@ function instructions() {
   const mode = MODES.find((m) => m.id === game.mode.id);
   showModal(
     "A good shot starts here.",
-    `<div class="guide-callout">${modePicture(game.mode.id)}<div><strong>${mode.name}</strong><p>${ruleText[game.mode.id]}</p></div></div><div class="instruction-grid"><div><span class="instruction-number">01</span><h3>Find your line</h3><p>Drag on the table with your mouse or finger to aim. The dotted guide shows your first contact.</p></div><div><span class="instruction-number">02</span><h3>Add your touch</h3><p>Set power with the slider. Tap the cue-ball diagram for top, back, or side spin.</p></div><div><span class="instruction-number">03</span><h3>Take the shot</h3><p>Press the shot button or Space. On desktop, Shift + drag down and release also shoots.</p></div><div><span class="instruction-number">04</span><h3>Make it yours</h3><p>Scroll to zoom; right-drag to orbit. On mobile use the camera button. Esc pauses the match.</p></div></div><p class="fine-print">Pool break: pocket an object ball or send four distinct object balls to cushions. A foul gives ball in hand anywhere: tap a clear spot to place. Simplified club rules omit push-outs, three-foul losses and 10-ball pass-back. Spin, pocket jaws, and AI are lightweight approximations.</p>`,
+    `<div class="guide-callout">${modePicture(game.mode.id)}<div><strong>${mode.name}</strong><p>${ruleText[game.mode.id]}</p></div></div><div class="instruction-grid"><div><span class="instruction-number">01</span><h3>Find your line</h3><p>Drag on the table with your mouse or finger to aim. The dotted guide shows your first contact.</p></div><div><span class="instruction-number">02</span><h3>Add your touch</h3><p>Set power with the slider. Tap the cue-ball diagram for top, back, or side spin.</p></div><div><span class="instruction-number">03</span><h3>Take the shot</h3><p>Press the shot button or Space. On desktop, Shift + drag down and release also shoots.</p></div><div><span class="instruction-number">04</span><h3>Make it yours</h3><p>Hold W/A/S/D to move the view. Use + / − or the mouse wheel to zoom; R resets the camera. Right-drag to orbit. Expand the table with the corner button. Esc pauses the match.</p></div></div><p class="fine-print">Pool break: pocket an object ball or send four distinct object balls to cushions. A foul gives ball in hand anywhere: tap a clear spot to place. Simplified club rules omit push-outs, three-foul losses and 10-ball pass-back. Spin, pocket jaws, and AI are lightweight approximations.</p>`,
   );
 }
 $("#instructions").onclick = instructions;

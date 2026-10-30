@@ -356,13 +356,14 @@ export class SceneManager {
         width / (2 * tan * aspect),
         (depth * Math.sin(elevation) + 0.5) / (2 * tan),
       ) *
-      1.26 *
+      1.18 *
       this.zoomLevel;
     this.camera.position.set(
       Math.sin(this.azimuth) * Math.cos(elevation) * distance,
       Math.sin(elevation) * distance,
       Math.cos(this.azimuth) * Math.cos(elevation) * distance,
     );
+    this.camera.position.add(this.target);
     this.camera.lookAt(this.target);
     this.camera.updateMatrixWorld();
   }
@@ -370,6 +371,28 @@ export class SceneManager {
     this.view = view === "top" ? "top" : "angle";
     this.azimuth = 0;
     this.zoomLevel = 1;
+    this.target.set(0, -0.04, 0);
+    this.updateCamera();
+  }
+  resetCamera() {
+    this.elevation = 0.91;
+    this.setView("angle");
+  }
+  pan(right, forward) {
+    this.target.x = THREE.MathUtils.clamp(
+      this.target.x +
+        right * Math.cos(this.azimuth) -
+        forward * Math.sin(this.azimuth),
+      -TABLE.halfWidth,
+      TABLE.halfWidth,
+    );
+    this.target.z = THREE.MathUtils.clamp(
+      this.target.z -
+        right * Math.sin(this.azimuth) -
+        forward * Math.cos(this.azimuth),
+      -TABLE.halfHeight,
+      TABLE.halfHeight,
+    );
     this.updateCamera();
   }
   orbit(dx, dy) {
@@ -383,10 +406,13 @@ export class SceneManager {
     this.updateCamera();
   }
   zoom(delta) {
+    this.adjustZoom(Math.sign(delta) * 0.065);
+  }
+  adjustZoom(amount) {
     this.zoomLevel = THREE.MathUtils.clamp(
-      this.zoomLevel * (1 + Math.sign(delta) * 0.065),
-      0.7,
-      1.6,
+      this.zoomLevel * Math.exp(amount),
+      0.35,
+      1.8,
     );
     this.updateCamera();
   }

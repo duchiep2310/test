@@ -5,6 +5,7 @@ export class InputController {
     this.canvas = game.scene.canvas;
     this.pointers = new Map();
     this.listeners = [];
+    this.keys = new Set();
     const on = (target, type, fn, options) => {
       target.addEventListener(type, fn, options);
       this.listeners.push(() => target.removeEventListener(type, fn, options));
@@ -86,12 +87,31 @@ export class InputController {
     on(window, "keydown", (e) => {
       if (
         game.lobbyOpen ||
-        e.target.matches(
-          "input,select,textarea,[contenteditable=true]",
-        ) ||
+        e.target.matches("input,select,textarea,[contenteditable=true]") ||
         document.querySelector("dialog[open]")
       )
         return;
+      if (
+        [
+          "KeyW",
+          "KeyA",
+          "KeyS",
+          "KeyD",
+          "Equal",
+          "Minus",
+          "NumpadAdd",
+          "NumpadSubtract",
+        ].includes(e.code)
+      ) {
+        e.preventDefault();
+        this.keys.add(e.code);
+        return;
+      }
+      if (e.code === "KeyR") {
+        e.preventDefault();
+        if (!e.repeat) game.scene.resetCamera();
+        return;
+      }
       if (e.code === "Space" && e.target.closest("button,a")) return;
       if (e.code === "Space") {
         e.preventDefault();
@@ -99,6 +119,41 @@ export class InputController {
       }
       if (e.code === "Escape") game.pause();
     });
+    on(window, "keyup", (e) => this.keys.delete(e.code));
+    on(window, "blur", () => this.keys.clear());
+    on(document, "visibilitychange", () => {
+      if (document.hidden) this.keys.clear();
+    });
+  }
+  update(dt) {
+    const active = document.activeElement;
+    if (
+      this.game.lobbyOpen ||
+      document.hidden ||
+      document.querySelector("dialog[open]") ||
+      active?.closest("input,select,textarea,[contenteditable=true]")
+    ) {
+      this.keys.clear();
+      return;
+    }
+    if (!this.keys.size) return;
+    const right = Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
+    const forward =
+      Number(this.keys.has("KeyW")) - Number(this.keys.has("KeyS"));
+    const length = Math.hypot(right, forward),
+      step = Math.min(dt, 0.05);
+    if (length) {
+      const distance =
+        1.8 * step * this.game.scene.zoomLevel * this.game.scene.sensitivity;
+      this.game.scene.pan(
+        (right / length) * distance,
+        (forward / length) * distance,
+      );
+    }
+    const zoom =
+      Number(this.keys.has("Minus") || this.keys.has("NumpadSubtract")) -
+      Number(this.keys.has("Equal") || this.keys.has("NumpadAdd"));
+    if (zoom) this.game.scene.adjustZoom(zoom * step);
   }
   touchGeometry() {
     const [a, b] = this.pointers.values();
@@ -111,5 +166,6 @@ export class InputController {
   dispose() {
     this.listeners.forEach((remove) => remove());
     this.pointers.clear();
+    this.keys.clear();
   }
 }

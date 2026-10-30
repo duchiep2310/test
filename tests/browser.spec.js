@@ -209,3 +209,103 @@ test("AI takes the next turn using the same engine", async ({ page }) => {
   expect(outcome.moving).toBe(true);
   expect(outcome.speed).toBeGreaterThan(0);
 });
+
+test("larger table, WASD camera movement, deep zoom and reset work without moving balls", async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await offline(page);
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const balls = await page.evaluate(() =>
+    window.__game.physics.balls.map((b) => [b.id, b.x, b.z, b.vx, b.vz]),
+  );
+  for (const [key, axis, sign] of [
+    ["w", "z", -1],
+    ["s", "z", 1],
+    ["a", "x", -1],
+    ["d", "x", 1],
+  ]) {
+    await page.keyboard.press("r");
+    await page.keyboard.down(key);
+    await page.waitForFunction(
+      ({ axis, sign }) => window.__game.scene.target[axis] * sign > 0.04,
+      { axis, sign },
+    );
+    await page.keyboard.up(key);
+    const stopped = await page.evaluate(() =>
+      window.__game.scene.target.toArray(),
+    );
+    await page.waitForTimeout(100);
+    expect(
+      await page.evaluate(() => window.__game.scene.target.toArray()),
+    ).toEqual(stopped);
+  }
+  expect(
+    await page.evaluate(() =>
+      window.__game.physics.balls.map((b) => [b.id, b.x, b.z, b.vx, b.vz]),
+    ),
+  ).toEqual(balls);
+  expect(await page.evaluate(() => window.__game.shots)).toBe(0);
+  await page.locator("#zoom-in").click();
+  const z = await page.evaluate(() => window.__game.scene.zoomLevel);
+  await page.locator("#zoom-out").click();
+  expect(
+    await page.evaluate(() => window.__game.scene.zoomLevel),
+  ).toBeGreaterThan(z);
+  await page.keyboard.down("Equal");
+  await page.waitForFunction(() => window.__game.scene.zoomLevel < 0.6);
+  await page.keyboard.up("Equal");
+  await page.keyboard.press("r");
+  expect(await page.evaluate(() => window.__game.scene.zoomLevel)).toBe(1);
+  expect(
+    await page.evaluate(
+      () => window.__game.scene.target.x + window.__game.scene.target.z,
+    ),
+  ).toBe(0);
+  const before = await page.locator("#scene").boundingBox();
+  await page.locator("#expand-table").click();
+  await expect(page.locator("#expand-table")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.waitForFunction(
+    (w) => document.querySelector("#scene").clientWidth > w + 100,
+    before.width,
+  );
+  await expect(page.locator("#player-cards")).toBeVisible();
+  await expect(page.locator("#shoot")).toBeEnabled();
+  await page.screenshot({
+    path: "test-results/expanded-table.png",
+    fullPage: true,
+  });
+  await page.locator("#edit-names-at-table").click();
+  await page.locator("#name-first").fill("");
+  await page.locator("#name-first").pressSequentially("wasd");
+  expect(
+    await page.evaluate(
+      () => window.__game.scene.target.x + window.__game.scene.target.z,
+    ),
+  ).toBe(0);
+  await page.locator("#close-names").click();
+  await page.keyboard.down("w");
+  await page.waitForFunction(() => window.__game.scene.target.z < -0.04);
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await page.keyboard.up("w");
+  const afterBlur = await page.evaluate(() =>
+    window.__game.scene.target.toArray(),
+  );
+  await page.waitForTimeout(100);
+  expect(
+    await page.evaluate(() => window.__game.scene.target.toArray()),
+  ).toEqual(afterBlur);
+  await page.locator("#reset-camera").click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  expect(errors).toEqual([]);
+});

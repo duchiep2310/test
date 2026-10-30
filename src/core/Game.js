@@ -311,6 +311,7 @@ export class Game {
     this.notify();
   }
   render(dt) {
+    this.input.update(dt);
     this.online?.update();
     if (this.lobbyOpen) return;
     this.scene.sync(

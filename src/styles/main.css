@@ -2000,3 +2000,73 @@ select {
     margin-top: 25px;
   }
 }
+/* Larger playing surface and an optional wide table, with scores and controls retained. */
+.table-stage {
+  height: clamp(400px, 49vh, 560px);
+}
+#zoom-in,
+#zoom-out {
+  font-size: 22px;
+  line-height: 1;
+}
+body.table-expanded main {
+  max-width: 1800px;
+}
+body.table-expanded .hero,
+body.table-expanded .mode-grid {
+  display: none;
+}
+body.table-expanded .game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+body.table-expanded .table-stage {
+  height: clamp(380px, 66vh, 850px);
+}
+body.table-expanded .match-sidebar {
+  display: block;
+  padding: 0;
+}
+body.table-expanded .match-sidebar > .sidebar-heading,
+body.table-expanded .match-sidebar > .objective,
+body.table-expanded .match-sidebar > .shot-note,
+body.table-expanded .match-sidebar > .rules-link {
+  display: none;
+}
+body.table-expanded #player-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+body.table-expanded .player-card {
+  margin-bottom: 0;
+  padding: 10px 16px;
+}
+body.table-expanded .control-deck {
+  margin-right: 0;
+  margin-top: 12px;
+}
+body.table-expanded .call-panel {
+  max-width: 100%;
+}
+@media (max-width: 650px) {
+  .table-stage {
+    height: 330px;
+  }
+  .table-actions .match-clock,
+  .table-actions .small-divider {
+    display: none;
+  }
+  .table-actions {
+    gap: 0;
+  }
+  body.table-expanded .table-stage {
+    height: clamp(330px, 60vh, 650px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
