@@ -29,6 +29,7 @@ export class Game {
       opponent: "local",
       difficulty: "medium",
       targetScore: 5,
+      playerNames: ["Người chơi 1", "Người chơi 2"],
     };
     try {
       Object.assign(
@@ -352,7 +353,7 @@ export class Game {
           `Đang chờ người chơi ${index + 1}`
       : index === 1 && this.settings.opponent === "ai"
         ? "The house"
-        : `Player ${index + 1}`;
+        : this.settings.playerNames?.[index] || `Người chơi ${index + 1}`;
   }
   get elapsed() {
     if (this.online) return this.online.info?.elapsed || 0;

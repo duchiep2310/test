@@ -1,5 +1,6 @@
 import "../styles/lobby.css";
 import { RoomClient } from "../network/RoomClient.js";
+import { cleanName } from "../utils/PlayerNames.js";
 import { MODES } from "../core/Constants.js";
 
 const $ = (s) => document.querySelector(s);
@@ -23,7 +24,7 @@ export class RoomLobby {
 <section id="room-lobby" class="lobby-screen" aria-label="Sảnh chơi billiards">
   <header class="lobby-header"><a class="brand" href="#" id="lobby-home"><span class="brand-mark">v<span>•</span></span><span>velvet<small>BILLIARDS CLUB</small></span></a><span class="lobby-topline"><i></i> CÙNG MỘT BÀN. CÙNG MỘT NHỊP.</span><button class="secondary" id="lobby-resume" hidden>Về bàn đang chơi →</button></header>
   <div class="lobby-content"><div class="eyebrow"><span></span> MỘT TRẬN ĐẤU HAY BẮT ĐẦU TỪ ĐÂY</div><h1>Hẹn nhau ở bàn bi.</h1><p class="lobby-intro">Mời một người bạn, vào xem một trận hay, hoặc thử sức với máy.<br>Chọn cách chơi của bạn — phần còn lại, để đường bi lên tiếng.</p>
-  <label class="lobby-name">TÊN CỦA BẠN <input id="room-name" maxlength="24" autocomplete="nickname" placeholder="Ví dụ: Hiệp" value="Người chơi"></label>
+  <div class="lobby-name"><label for="room-name">TÊN NGƯỜI CHƠI</label><input id="room-name" maxlength="24" autocomplete="nickname" placeholder="Ví dụ: Hiệp" value="Người chơi"><button type="button" id="edit-player-names" class="text-button">Đặt / đổi tên người chơi →</button></div>
   <div id="lobby-feedback" role="status" hidden></div>
   <div class="lobby-grid">
     <form id="create-room-form" class="lobby-card featured"><div class="lobby-card-art"><span class="lobby-ball eight">8</span><span class="art-line"></span><span class="art-caption">YOUR TABLE, YOUR PEOPLE.</span></div><span class="lobby-card-tag">01 / MỜI BẠN CÙNG CHƠI</span><h2>Tạo phòng</h2><p>Một mã phòng riêng. Hai người thi đấu.<br>Bạn bè có thể vào xem và theo dõi trực tiếp.</p><label>CHẾ ĐỘ<select id="room-mode">${modeOptions}</select></label><label>ĐIỂM ĐÍCH CAROM<select id="room-target"><option>3</option><option selected>5</option><option>10</option><option>20</option></select></label><button class="primary full" id="create-room" type="submit">Tạo phòng mới <span>→</span></button><small>Chia sẻ mã hoặc đường dẫn để mời bạn.</small></form>
@@ -35,8 +36,24 @@ export class RoomLobby {
     );
     $("#play-area").insertAdjacentHTML(
       "beforebegin",
-      `<section id="online-room" class="online-room" aria-label="Thông tin phòng online" hidden><div class="room-code-block"><span class="control-label">PHÒNG ONLINE</span><button id="copy-room-code" title="Sao chép mã phòng"><strong id="current-room-code"></strong><span>⧉</span></button></div><div class="room-meta"><strong id="room-role"></strong><span id="room-status" aria-live="polite"></span></div><div class="room-spectators"><span>◎</span> <strong id="spectator-count">0</strong> người xem</div><div class="room-banner-actions"><button id="copy-play-link" class="secondary">Mời bạn</button><button id="copy-watch-link" class="secondary">Link xem</button><button id="claim-seat" class="primary" hidden>Ngồi vào bàn</button><button id="leave-room" class="text-button">Rời phòng</button></div><p id="room-notice" role="status" hidden></p></section>`,
+      `<section id="online-room" class="online-room" aria-label="Thông tin phòng online" hidden><div class="room-code-block"><span class="control-label">PHÒNG ONLINE</span><button id="copy-room-code" title="Sao chép mã phòng"><strong id="current-room-code"></strong><span>⧉</span></button></div><div class="room-meta"><strong id="room-role"></strong><span id="room-status" aria-live="polite"></span></div><div class="room-spectators"><span>◎</span> <strong id="spectator-count">0</strong> người xem</div><div class="room-banner-actions"><button id="copy-play-link" class="secondary">Mời bạn</button><button id="copy-watch-link" class="secondary">Link xem</button><button id="claim-seat" class="primary" hidden>Ngồi vào bàn</button><button id="rename-in-room" class="secondary">Đổi tên</button><button id="leave-room" class="text-button">Rời phòng</button></div><p id="room-notice" role="status" hidden></p></section>`,
     );
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      `<dialog id="names-dialog"><form id="names-form"><div class="modal-header"><h2>Tên trên bàn bi</h2><button type="button" class="icon-button" id="close-names" aria-label="Đóng">×</button></div><label>Tên của bạn<input id="name-first" maxlength="24" required autocomplete="nickname"></label><label id="second-name-label">Tên người chơi thứ hai<input id="name-second" maxlength="24" required></label><p class="fine-print">Tối đa 24 ký tự, hỗ trợ tiếng Việt. Tên được nhớ trên trình duyệt này; trong phòng online, mọi người sẽ thấy tên mới.</p><p id="names-error" role="alert"></p><button class="primary full" type="submit">Lưu tên</button></form></dialog>`,
+    );
+    $("#edit-player-names").onclick = () => this.editNames();
+    $("#rename-in-room").onclick = () => this.editNames();
+    $("#close-names").onclick = () => $("#names-dialog").close();
+    $("#footer-help").insertAdjacentHTML(
+      "beforebegin",
+      '<button id="edit-names-at-table">Đổi tên</button>',
+    );
+    $("#edit-names-at-table").onclick = () => this.editNames();
+    $("#names-form").onsubmit = (e) => {
+      e.preventDefault();
+      this.saveNames();
+    };
     try {
       $("#room-name").value =
         localStorage.getItem("velvet-player-name") || "Người chơi";
@@ -116,11 +133,54 @@ export class RoomLobby {
     }
   }
   name() {
-    const name = $("#room-name").value.trim().slice(0, 24) || "Người chơi";
+    const name = cleanName($("#room-name").value);
+    this.game.setSettings({
+      playerNames: [
+        name,
+        this.game.settings.playerNames?.[1] || "Người chơi 2",
+      ],
+    });
     try {
       localStorage.setItem("velvet-player-name", name);
     } catch {}
     return name;
+  }
+  editNames() {
+    const online = this.game.online;
+    $("#name-first").value =
+      online?.name || $("#room-name").value || this.game.playerName(0);
+    $("#name-second").value =
+      this.game.settings.playerNames?.[1] || "Người chơi 2";
+    $("#second-name-label").hidden =
+      Boolean(online) || this.game.settings.opponent === "ai";
+    $("#name-second").disabled = $("#second-name-label").hidden;
+    $("#names-error").textContent = "";
+    $("#names-dialog").showModal();
+    $("#name-first").focus();
+  }
+  saveNames() {
+    const name = cleanName($("#name-first").value, ""),
+      second = cleanName($("#name-second").value, "Người chơi 2");
+    if (!name) {
+      $("#names-error").textContent = "Vui lòng nhập tên hợp lệ.";
+      return;
+    }
+    const online = this.game.online;
+    if (online) {
+      if (!online.command("rename", { name })) {
+        $("#names-error").textContent =
+          "Chưa kết nối được máy chủ. Hãy thử lại.";
+        return;
+      }
+    } else {
+      this.game.setSettings({ playerNames: [name, second] });
+      try {
+        localStorage.setItem("velvet-player-name", name);
+      } catch {}
+    }
+    $("#room-name").value = name;
+    $("#names-dialog").close();
+    this.game.notify();
   }
   feedback(message, error = false) {
     const el = $("#lobby-feedback");
@@ -192,6 +252,7 @@ export class RoomLobby {
     this.connectingClient?.leave();
     this.game.online?.leave();
     this.clearInvitation();
+    this.name();
     this.game.setSettings({
       opponent,
       difficulty: $("#lobby-difficulty").value,

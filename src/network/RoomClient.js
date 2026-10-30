@@ -139,6 +139,25 @@ export class RoomClient {
               }),
             );
           } catch {}
+        } else if (data.type === "renamed") {
+          this.name = data.name;
+          try {
+            localStorage.setItem("velvet-player-name", data.name);
+            const saved = RoomClient.saved();
+            if (saved?.roomId === this.roomId)
+              sessionStorage.setItem(
+                STORE,
+                JSON.stringify({ ...saved, name: data.name }),
+              );
+          } catch {}
+          this.game.setSettings({
+            playerNames: [
+              data.name,
+              this.game.settings.playerNames?.[1] || "Người chơi 2",
+            ],
+          });
+          this.game.notify();
+          this.onChange(this);
         } else if (data.type === "snapshot" && this.connected) {
           this.receive(data);
           finish();

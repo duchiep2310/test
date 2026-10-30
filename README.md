@@ -23,6 +23,10 @@ Hoặc mở hai terminal: `npm start` (backend cổng 3001) và `npm run dev` (V
 - Kết thúc trận, cả hai người chơi phải đồng ý tái đấu. Người xem tiếp tục ở cùng phòng.
 - Phòng lưu trong RAM một tiến trình, mất khi server restart/ngủ/redeploy. Chưa có tài khoản, xác minh danh tính hay cơ sở dữ liệu; ai có mã có thể vào phòng. Không chạy nhiều instance độc lập nếu chưa bổ sung shared state và routing.
 
+## Tên người chơi
+
+Nhập tên ở sảnh hoặc chọn **Đặt / đổi tên người chơi**. Trong trận, dùng **Đổi tên** ở thanh phòng hoặc cuối trang. Chơi local có thể đặt tên riêng cho cả hai người; chơi AI dùng tên của bạn. Tên hỗ trợ tiếng Việt, tối đa 24 ký tự, được nhớ trên trình duyệt. Đổi tên online đồng bộ ngay cho đối thủ/khán giả và không đổi ghế, lượt hay điểm.
+
 ## Cài đặt và chạy
 
 Cần Node.js `>=22.12.0`, npm và trình duyệt hỗ trợ WebGL2. Môi trường phát triển hiện tại dùng Node.js 24.
@@ -61,7 +65,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Bản phòng online đã đạt 72 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 8 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 9 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 

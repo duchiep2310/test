@@ -152,7 +152,7 @@ function update(g) {
   const phtml = [0, 1]
     .map(
       (p) =>
-        `<div class="player-card ${p === active ? "is-active" : ""}"><div class="player-avatar ${p === 1 ? "second" : ""}">${!g.online && p === 1 && g.settings.opponent === "ai" ? "AI" : `0${p + 1}`}</div><div class="player-info"><strong>${escapeHtml(g.playerName(p))} ${p === active ? '<span class="turn-dot"></span>' : ""}</strong><span>${d.players?.[p]?.detail || d.players?.[p]?.label || "Ready to play"}</span></div><div class="player-score">${g.mode.scores[p]}<small>${g.mode.pockets ? "POTTED" : "POINTS"}</small></div></div>`,
+        `<div class="player-card ${p === active ? "is-active" : ""}"><div class="player-avatar ${p === 1 ? "second" : ""}">${!g.online && p === 1 && g.settings.opponent === "ai" ? "AI" : `0${p + 1}`}</div><div class="player-info"><strong title="${escapeHtml(g.playerName(p))}">${escapeHtml(g.playerName(p))} ${p === active ? '<span class="turn-dot"></span>' : ""}</strong><span>${d.players?.[p]?.detail || d.players?.[p]?.label || "Ready to play"}</span></div><div class="player-score">${g.mode.scores[p]}<small>${g.mode.pockets ? "POTTED" : "POINTS"}</small></div></div>`,
     )
     .join("");
   if (phtml !== lastPlayerHtml) {
@@ -190,7 +190,7 @@ function update(g) {
           ? "The house is lining up…"
           : g.shots === 0
             ? "A fresh rack. A fresh start."
-            : `Player ${active + 1}, the table is yours.`,
+            : `${g.playerName(active)}, the table is yours.`,
   );
   const shoot = $("#shoot");
   shoot.disabled = !g.canShoot || g.isAI;

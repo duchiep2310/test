@@ -1,12 +1,8 @@
+import { cleanName } from "../src/utils/PlayerNames.js";
 export const ROOM_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
 export const MODES = new Set(["eight", "nine", "ten", "carom", "three"]);
 export function nameOf(value) {
-  return (
-    (typeof value === "string" ? value : "")
-      .replace(/[\u0000-\u001f\u007f<>\u202a-\u202e\u2066-\u2069]/g, "")
-      .trim()
-      .slice(0, 24) || "Khách"
-  );
+  return cleanName(value, "Khách");
 }
 export function shotOf(data) {
   const range = (v, min, max) =>

@@ -67,7 +67,7 @@ test("lobby offers room creation, ID entry, spectators and offline AI on desktop
 test("two browsers play the same match, several spectators watch, reconnect and seat promotion work", async ({
   browser,
 }) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   const clients = [];
   const errors = [];
   try {
@@ -75,7 +75,9 @@ test("two browsers play the same match, several spectators watch, reconnect and 
     clients.push(host);
     host.page.on("pageerror", (e) => errors.push(e.message));
     await host.page.locator("#create-room").click();
-    await expect(host.page.locator("#online-room")).toBeVisible();
+    await expect(host.page.locator("#online-room")).toBeVisible({
+      timeout: 15000,
+    });
     const id = await host.page.locator("#current-room-code").textContent();
     expect(id).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
     await expect(host.page.locator("#shoot")).toBeDisabled();
@@ -108,6 +110,15 @@ test("two browsers play the same match, several spectators watch, reconnect and 
       await watcher.page.evaluate(() => window.__game.online.seat),
     ).toBeNull();
     await expect(watcher.page.locator("#pause")).toBeDisabled();
+    await host.page.locator("#rename-in-room").click();
+    await host.page.locator("#name-first").fill("Hiệp Nguyễn");
+    await host.page.locator("#names-form button[type=submit]").click();
+    await expect(guest.page.locator("#player-cards")).toContainText(
+      "Hiệp Nguyễn",
+    );
+    await expect(watcher.page.locator("#player-cards")).toContainText(
+      "Hiệp Nguyễn",
+    );
     await host.page.locator("#shoot").click();
     for (const client of [guest, watcher, watcher2])
       await client.page.waitForFunction(
@@ -145,7 +156,9 @@ test("two browsers play the same match, several spectators watch, reconnect and 
       fullPage: true,
     });
     await host.page.reload();
-    await expect(host.page.locator("#online-room")).toBeVisible();
+    await expect(host.page.locator("#online-room")).toBeVisible({
+      timeout: 15000,
+    });
     await host.page.waitForFunction(
       () =>
         window.__game.online?.connected && window.__game.online?.info?.ready,
@@ -155,6 +168,9 @@ test("two browsers play the same match, several spectators watch, reconnect and 
       await host.page.evaluate(() => window.__game.online.info.matchId),
     ).toBe(matchId);
     expect(await host.page.evaluate(() => window.__game.shots)).toBe(1);
+    expect(await host.page.evaluate(() => window.__game.online.name)).toBe(
+      "Hiệp Nguyễn",
+    );
     host.page.once("dialog", (d) => d.accept());
     await host.page.locator("#leave-room").click();
     await expect(host.page.locator("#room-lobby")).toBeVisible();
@@ -188,4 +204,23 @@ test("invalid room shows useful error and AI remains playable without joining", 
   await expect(page.locator("#room-lobby")).toBeHidden();
   expect(await page.evaluate(() => window.__game.online)).toBeUndefined();
   await expect(page.locator("#shoot")).toBeEnabled();
+});
+
+test("player names work offline, persist and support both local seats", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator("#edit-player-names").click();
+  await page.locator("#name-first").fill("Nguyễn An");
+  await page.locator("#names-form button[type=submit]").click();
+  await page.locator("#play-local").click();
+  await expect(page.locator("#player-cards")).toContainText("Nguyễn An");
+  await page.locator("#edit-names-at-table").click();
+  await page.locator("#name-second").fill("Trần Bình");
+  await page.locator("#names-form button[type=submit]").click();
+  await expect(page.locator("#player-cards")).toContainText("Trần Bình");
+  await page.reload();
+  await expect(page.locator("#room-name")).toHaveValue("Nguyễn An");
+  await page.locator("#play-local").click();
+  await expect(page.locator("#player-cards")).toContainText("Trần Bình");
 });

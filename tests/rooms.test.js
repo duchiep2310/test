@@ -372,3 +372,29 @@ test("failed creation cannot leak room slots and creator always takes a playing 
   assert.equal(creator.seat, 0);
   assert.equal(hub.rooms.size, 1);
 });
+
+test("rename updates only the sender, broadcasts names and preserves match/seat tokens", () => {
+  const { hub, a, b, room } = openRoom();
+  const token = room.players[0].token,
+    matchId = room.matchId;
+  hub.handle(a, { type: "rename", name: "  Nguyễn Hiệp  ", seat: 1 });
+  assert.equal(room.players[0].name, "Nguyễn Hiệp");
+  assert.equal(room.players[1].name, "Bình");
+  assert.equal(room.players[0].token, token);
+  assert.equal(room.matchId, matchId);
+  assert.equal(
+    b.messages.filter((m) => m.type === "snapshot").at(-1).players[0].name,
+    "Nguyễn Hiệp",
+  );
+  assert.throws(
+    () => hub.handle(a, { type: "rename", name: "   " }),
+    /nhập tên/,
+  );
+  const s = peer();
+  hub.handle(s, { type: "join", roomId: room.id, spectate: true });
+  hub.handle(s, { type: "rename", name: "Khán giả Việt" });
+  assert.ok(room.snapshot().spectators.includes("Khán giả Việt"));
+  hub.handle(a, { type: "leave" });
+  hub.handle(s, { type: "claim" });
+  assert.equal(room.players[0].name, "Khán giả Việt");
+});

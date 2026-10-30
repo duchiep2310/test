@@ -143,6 +143,18 @@ export class Room {
     }
   }
   command(peer, data) {
+    if (data.type === "rename") {
+      if (typeof data.name !== "string" || !data.name.trim())
+        throw new Error("Vui lòng nhập tên người chơi.");
+      const name = nameOf(data.name),
+        seat = this.seatOf(peer);
+      if (seat >= 0) this.players[seat].name = name;
+      else if (this.spectators.has(peer)) peer.name = name;
+      else throw new Error("Bạn chưa vào phòng.");
+      peer.send({ type: "renamed", name });
+      this.broadcast();
+      return;
+    }
     if (data.type === "claim") {
       if (this.seatOf(peer) >= 0) return;
       const seat = this.players.findIndex((p) => p === null);
