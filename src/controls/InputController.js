@@ -1,0 +1,111 @@
+/** Pointer and keyboard input only; world projection and shot validation stay in their owners. */
+export class InputController {
+  constructor(game) {
+    this.game = game;
+    this.canvas = game.scene.canvas;
+    this.pointers = new Map();
+    this.listeners = [];
+    const on = (target, type, fn, options) => {
+      target.addEventListener(type, fn, options);
+      this.listeners.push(() => target.removeEventListener(type, fn, options));
+    };
+    const aim = (e) => {
+      const p = game.scene.screenToTable(e.clientX, e.clientY);
+      if (p && game.cue)
+        game.angle = Math.atan2(p.z - game.cue.z, p.x - game.cue.x);
+    };
+    on(this.canvas, "contextmenu", (e) => e.preventDefault());
+    on(this.canvas, "pointerdown", (e) => {
+      if (e.button !== 0 && e.button !== 2) return;
+      game.audio.play("button", 0.05);
+      this.canvas.setPointerCapture(e.pointerId);
+      this.pointers.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        startY: e.clientY,
+        orbit: e.button === 2 || e.altKey,
+        charge: e.shiftKey,
+        multitouch: false,
+      });
+      if (this.pointers.size > 1) {
+        for (const p of this.pointers.values()) p.multitouch = true;
+        this.gesture = this.touchGeometry();
+        return;
+      }
+      if (game.ballInHand) {
+        const p = game.scene.screenToTable(e.clientX, e.clientY);
+        if (p) game.place(p.x, p.z);
+      } else if (game.canShoot && !game.isAI && !e.altKey && e.button === 0)
+        aim(e);
+    });
+    on(this.canvas, "pointermove", (e) => {
+      const p = this.pointers.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x,
+        dy = e.clientY - p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (this.pointers.size > 1) {
+        const next = this.touchGeometry();
+        if (this.gesture) {
+          game.scene.orbit(
+            (next.x - this.gesture.x) * 1.5,
+            (next.y - this.gesture.y) * 1.5,
+          );
+          if (Math.abs(next.distance - this.gesture.distance) > 1)
+            game.scene.zoom((this.gesture.distance - next.distance) * 2);
+        }
+        this.gesture = next;
+        return;
+      }
+      if (p.multitouch) return;
+      if (p.orbit) game.scene.orbit(dx, dy);
+      else if (p.charge) game.setPower(0.1 + (e.clientY - p.startY) / 180);
+      else if (game.canShoot && !game.isAI) aim(e);
+    });
+    const up = (e) => {
+      const p = this.pointers.get(e.pointerId);
+      if (p?.charge && !p.multitouch) game.shoot();
+      this.pointers.delete(e.pointerId);
+      this.gesture = null;
+    };
+    on(this.canvas, "pointerup", up);
+    on(this.canvas, "pointercancel", (e) => {
+      this.pointers.delete(e.pointerId);
+      this.gesture = null;
+    });
+    on(
+      this.canvas,
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        game.scene.zoom(e.deltaY);
+      },
+      { passive: false },
+    );
+    on(window, "keydown", (e) => {
+      if (
+        e.target.matches("input,select,textarea") ||
+        document.querySelector("dialog[open]")
+      )
+        return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        game.shoot();
+      }
+      if (e.code === "Escape") game.pause();
+    });
+  }
+  touchGeometry() {
+    const [a, b] = this.pointers.values();
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2,
+      distance: Math.hypot(a.x - b.x, a.y - b.y),
+    };
+  }
+  dispose() {
+    this.listeners.forEach((remove) => remove());
+    this.pointers.clear();
+  }
+}
