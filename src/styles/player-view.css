@@ -1,0 +1,71 @@
+.player-view-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid #dbe2cf;
+  background: #f5f7ed;
+}
+.player-view-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 7px;
+  color: #81916d;
+  letter-spacing: 1px;
+  flex: 1;
+  min-width: 160px;
+}
+.player-view-controls select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d1dcc4;
+  border-radius: 4px;
+  background: #fffef6;
+  color: #4e6940;
+  font:
+    11px "Segoe UI",
+    sans-serif;
+  padding: 8px;
+}
+.player-view-controls button {
+  border: 1px solid #cbd7bc;
+  border-radius: 4px;
+  background: #e8eedc;
+  padding: 9px 12px;
+  font-size: 10px;
+  color: #47683a;
+  align-self: flex-end;
+}
+.player-view-controls button:disabled,
+.player-view-controls select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+#player-view-subject {
+  flex-basis: 100%;
+  font-size: 8px;
+  line-height: 1.5;
+  color: #91a07d;
+}
+@media (max-width: 650px) {
+  .player-view-controls {
+    padding: 9px 12px;
+    gap: 8px;
+  }
+  .player-view-controls label {
+    min-width: 130px;
+  }
+  .player-view-controls select {
+    font-size: 10px;
+    padding: 8px 5px;
+  }
+  .player-view-controls button {
+    font-size: 9px;
+    padding: 7px 10px;
+  }
+  #player-view-subject {
+    flex-basis: 50%;
+    flex-grow: 1;
+  }
+}

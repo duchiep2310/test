@@ -37,7 +37,13 @@ export class InputController {
       if (game.ballInHand) {
         const p = game.scene.screenToTable(e.clientX, e.clientY);
         if (p) game.place(p.x, p.z);
-      } else if (game.canShoot && !game.isAI && !e.altKey && e.button === 0)
+      } else if (
+        game.canShoot &&
+        !game.isAI &&
+        !e.altKey &&
+        e.button === 0 &&
+        !["first", "third"].includes(game.scene.view)
+      )
         aim(e);
     });
     on(this.canvas, "pointermove", (e) => {
@@ -63,7 +69,11 @@ export class InputController {
       if (p.multitouch) return;
       if (p.orbit) game.scene.orbit(dx, dy);
       else if (p.charge) game.setPower(0.1 + (e.clientY - p.startY) / 180);
-      else if (game.canShoot && !game.isAI) aim(e);
+      else if (game.canShoot && !game.isAI) {
+        if (["first", "third"].includes(game.scene.view))
+          game.setAngle(game.angle + dx * 0.003 * game.scene.sensitivity);
+        else aim(e);
+      }
     });
     const up = (e) => {
       const p = this.pointers.get(e.pointerId);

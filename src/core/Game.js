@@ -459,6 +459,15 @@ export class Game {
       this.online ? this.online.showAim : this.canShoot && !this.isAI,
       this.jump,
     );
+    this.scene.setPlayers({
+      activeSeat: this.mode.currentPlayer,
+      localSeat: this.online
+        ? this.online.seat
+        : this.settings.opponent === "ai"
+          ? 0
+          : this.mode.currentPlayer,
+      names: [this.playerName(0), this.playerName(1)],
+    });
     this.scene.render();
     this.hudTimer = (this.hudTimer || 0) + dt;
     if (this.hudTimer > 0.18) {

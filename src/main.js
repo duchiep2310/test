@@ -3,6 +3,7 @@ import { MatchControls } from "./ui/MatchControls.js";
 import { CueAngleControl } from "./ui/CueAngleControl.js";
 import { ShotCallDialog } from "./ui/ShotCallDialog.js";
 import { JumpControl } from "./ui/JumpControl.js";
+import { PlayerViewControls } from "./ui/PlayerViewControls.js";
 import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
@@ -66,6 +67,7 @@ let matchControls = null;
 let cueAngleControl = null;
 let shotCallDialog = null;
 let jumpControl = null;
+let playerViewControls = null;
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -346,6 +348,7 @@ function update(g) {
   cueAngleControl?.update();
   shotCallDialog?.update();
   jumpControl?.update();
+  playerViewControls?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
@@ -366,6 +369,7 @@ try {
   cueAngleControl = new CueAngleControl(game);
   shotCallDialog = new ShotCallDialog(game);
   jumpControl = new JumpControl(game);
+  playerViewControls = new PlayerViewControls(game);
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;
@@ -433,6 +437,7 @@ $("#reset-camera").onclick = () => {
   camera = "angle";
   $("#camera").innerHTML = icon("top", 18);
   $("#camera").setAttribute("aria-label", "Switch to top view");
+  game.notify();
 };
 $("#expand-table").onclick = () => {
   const expanded = document.body.classList.toggle("table-expanded");
@@ -455,6 +460,7 @@ $("#camera").onclick = () => {
     "aria-label",
     `Switch to ${camera === "angle" ? "top" : "angled"} view`,
   );
+  game.notify();
 };
 $("#mute").onclick = () => {
   game.muted = !game.muted;

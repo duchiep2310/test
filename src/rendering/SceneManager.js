@@ -4,6 +4,7 @@ import { TableRenderer } from "./TableRenderer.js";
 import { BallRenderer } from "./BallRenderer.js";
 import { ClubEnvironment } from "./ClubEnvironment.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { PlayerRenderer } from "./PlayerRenderer.js";
 
 export class SceneManager {
   constructor(container, callbacks = {}) {
@@ -33,6 +34,15 @@ export class SceneManager {
     this.zoomLevel = 1;
     this.sensitivity = 1;
     this.view = "angle";
+    this.follow = "self";
+    this.followSeat = 0;
+    this.playerYaw = this.playerPitch = 0;
+    this.playerContext = {
+      activeSeat: 0,
+      localSeat: 0,
+      names: ["Người chơi 1", "Người chơi 2"],
+    };
+    this.playerLook = new THREE.Vector3();
     this.aimGuide = true;
     this.showAim = true;
     this.power = 0.4;
@@ -51,6 +61,7 @@ export class SceneManager {
     this.floor = this.environment.floor;
     this.table = new TableRenderer(this.scene);
     this.ballRenderer = new BallRenderer(this.scene);
+    this.playerRenderer = new PlayerRenderer(this.scene);
     this.buildCue();
     this.cueLocalTip = new THREE.Vector3();
     this.buildGuide();
@@ -439,6 +450,46 @@ export class SceneManager {
     if (!hit) return null;
     return { x: hit.x, z: hit.z };
   }
+  setPlayers(context) {
+    this.playerContext = context;
+    this.syncPlayers();
+  }
+  syncPlayers() {
+    const c = this.playerContext;
+    const local = c.localSeat ?? 0;
+    const seat =
+      this.follow === "turn"
+        ? c.activeSeat
+        : this.follow === "opponent"
+          ? 1 - local
+          : local;
+    const changedSeat = seat !== this.followSeat;
+    this.followSeat = seat;
+    const changed = this.playerRenderer.sync({
+      cue: this.balls.find((b) => b.id === this.cueId),
+      angle: this.angle,
+      activeSeat: c.activeSeat,
+      names: c.names,
+      aiming: this.showAim,
+      view: this.view,
+      followSeat: seat,
+    });
+    if (changed || changedSeat) {
+      this.dirty = true;
+      if (this.view === "first" || this.view === "third") this.updateCamera();
+    }
+  }
+  setFollow(value) {
+    if (!["self", "opponent", "turn"].includes(value)) return;
+    this.follow = value;
+    this.playerYaw = this.playerPitch = 0;
+    this.syncPlayers();
+    this.updateCamera();
+  }
+  centerPlayerView() {
+    this.playerYaw = this.playerPitch = 0;
+    this.updateCamera();
+  }
   resize() {
     const w = this.container.clientWidth || 800,
       h = this.container.clientHeight || 500;
@@ -449,6 +500,57 @@ export class SceneManager {
   }
   updateCamera() {
     this.dirty = true;
+    const personView = this.view === "first" || this.view === "third";
+    const fov =
+      this.view === "first"
+        ? THREE.MathUtils.clamp(55 * this.zoomLevel, 30, 75)
+        : this.view === "third"
+          ? 45
+          : 38;
+    if (this.camera.fov !== fov) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+    const state = this.playerRenderer.states[this.followSeat];
+    if (personView && state.valid) {
+      if (this.view === "first") {
+        this.playerRenderer.people[this.followSeat].eye.getWorldPosition(
+          this.camera.position,
+        );
+        this.playerLook.copy(state.focus).sub(this.camera.position);
+        const yaw =
+          Math.atan2(this.playerLook.x, this.playerLook.z) + this.playerYaw;
+        const pitch = THREE.MathUtils.clamp(
+          Math.atan2(
+            this.playerLook.y,
+            Math.hypot(this.playerLook.x, this.playerLook.z),
+          ) + this.playerPitch,
+          -1.2,
+          1.1,
+        );
+        this.playerLook
+          .set(
+            Math.sin(yaw) * Math.cos(pitch),
+            Math.sin(pitch),
+            Math.cos(yaw) * Math.cos(pitch),
+          )
+          .add(this.camera.position);
+        this.camera.lookAt(this.playerLook);
+      } else {
+        const yaw =
+          Math.atan2(state.forward.x, state.forward.z) + this.playerYaw;
+        const distance = 1.7 * this.zoomLevel;
+        this.camera.position.set(
+          state.position.x - Math.sin(yaw) * distance,
+          1.1 + 0.9 * this.zoomLevel + this.playerPitch,
+          state.position.z - Math.cos(yaw) * distance,
+        );
+        this.camera.lookAt(state.focus);
+      }
+      this.camera.updateMatrixWorld();
+      this.environment.setCamera(this.camera, this.view);
+      return;
+    }
     const aspect = this.camera.aspect,
       tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const width =
@@ -478,10 +580,14 @@ export class SceneManager {
     this.environment.setCamera(this.camera, this.view);
   }
   setView(view) {
-    this.view = view === "top" ? "top" : "angle";
+    this.view = ["angle", "top", "first", "third"].includes(view)
+      ? view
+      : "angle";
     this.azimuth = 0;
     this.zoomLevel = 1;
+    this.playerYaw = this.playerPitch = 0;
     this.target.set(0, view === "top" ? -0.04 : 0.12, 0);
+    this.syncPlayers();
     this.updateCamera();
   }
   resetCamera() {
@@ -489,6 +595,16 @@ export class SceneManager {
     this.setView("angle");
   }
   pan(right, forward) {
+    if (this.view === "first" || this.view === "third") {
+      this.playerYaw += right * 0.5;
+      this.playerPitch = THREE.MathUtils.clamp(
+        this.playerPitch + forward * 0.3,
+        -0.5,
+        0.8,
+      );
+      this.updateCamera();
+      return;
+    }
     this.target.x = THREE.MathUtils.clamp(
       this.target.x +
         right * Math.cos(this.azimuth) -
@@ -506,6 +622,16 @@ export class SceneManager {
     this.updateCamera();
   }
   orbit(dx, dy) {
+    if (this.view === "first" || this.view === "third") {
+      this.playerYaw -= dx * 0.005 * this.sensitivity;
+      this.playerPitch = THREE.MathUtils.clamp(
+        this.playerPitch + dy * 0.004 * this.sensitivity,
+        -0.5,
+        0.8,
+      );
+      this.updateCamera();
+      return;
+    }
     this.view = "angle";
     this.azimuth -= dx * 0.005 * this.sensitivity;
     this.elevation = THREE.MathUtils.clamp(
@@ -521,7 +647,7 @@ export class SceneManager {
   adjustZoom(amount) {
     this.zoomLevel = THREE.MathUtils.clamp(
       this.zoomLevel * Math.exp(amount),
-      0.35,
+      this.view === "first" || this.view === "third" ? 0.65 : 0.35,
       1.8,
     );
     this.updateCamera();
@@ -561,6 +687,7 @@ export class SceneManager {
     this.resizeObserver.disconnect();
     this.table.dispose();
     this.ballRenderer.dispose();
+    this.playerRenderer.dispose();
     this.environment.dispose();
     this.reflections.dispose();
     this.keyLight.shadow.dispose();

@@ -1,12 +1,21 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { TABLE, POCKETS } from "../core/Constants.js";
+import { POCKETS } from "../core/Constants.js";
 import {
   canvasTexture,
   clothTexture,
   walnutTexture,
   disposeGroup,
 } from "./ClubMaterials.js";
+
+import {
+  bedGeometry,
+  clothGeometry,
+  deckMask,
+  POCKET_OPENING,
+  FRAME_WIDTH,
+  FRAME_DEPTH,
+} from "./PocketGeometry.js";
 
 function box(w, h, d, material, x = 0, y = 0, z = 0, rounded = false) {
   const mesh = new THREE.Mesh(
@@ -71,7 +80,9 @@ export class TableRenderer {
   }
   build() {
     const frame = this.group;
-    frame.add(box(6.46, 0.22, 3.66, this.woodMaterial, 0, -0.135, 0, true));
+    this.poolBed = this.buildBed(true);
+    this.caromBed = this.buildBed(false);
+    frame.add(this.poolBed, this.caromBed);
     frame.add(box(6.32, 0.028, 3.52, this.brass, 0, -0.258, 0, true));
     frame.add(box(6.2, 0.31, 3.42, this.apronMaterial, 0, -0.41, 0, true));
     frame.add(box(6.23, 0.042, 3.45, this.dark, 0, -0.58, 0, true));
@@ -84,14 +95,6 @@ export class TableRenderer {
       frame.add(box(0.017, 0.18, 2.5, this.dark, side * 3.11, -0.405, 0));
       frame.add(box(0.019, 0.009, 2.51, this.brass, side * 3.112, -0.5, 0));
     }
-    const surface = new THREE.Mesh(
-      new THREE.PlaneGeometry(TABLE.width, TABLE.height),
-      this.cloth,
-    );
-    surface.rotation.x = -Math.PI / 2;
-    surface.receiveShadow = true;
-    surface.position.y = 0.003;
-    frame.add(surface);
     for (const x of [-2.3, 2.3])
       for (const z of [-1.1, 1.1]) {
         frame.add(box(0.4, 0.13, 0.4, this.dark, x, -0.61, z, true));
@@ -114,14 +117,14 @@ export class TableRenderer {
         const mark = new THREE.Mesh(diamondGeo, this.brass);
         mark.scale.y = 0.13;
         mark.rotation.y = Math.PI / 4;
-        mark.position.set(x, 0.089, side * 1.655);
+        mark.position.set(x, 0.018, side * 1.69);
         frame.add(mark);
       }
       for (const z of [-0.7, 0, 0.7]) {
         const mark = new THREE.Mesh(diamondGeo, this.brass);
         mark.scale.y = 0.13;
         mark.rotation.y = Math.PI / 4;
-        mark.position.set(side * 3.065, 0.089, z);
+        mark.position.set(side * 3.065, 0.018, z);
         frame.add(mark);
       }
     }
@@ -225,29 +228,6 @@ export class TableRenderer {
           [b, side * 1.535],
           [a, side * 1.535],
         ]);
-        rails.add(
-          box(
-            b - a + 0.06,
-            0.105,
-            0.25,
-            this.woodMaterial,
-            (a + b) / 2,
-            0.027,
-            side * 1.67,
-            true,
-          ),
-        );
-        rails.add(
-          box(
-            b - a - 0.07,
-            0.007,
-            0.008,
-            this.brass,
-            (a + b) / 2,
-            0.081,
-            side * 1.78,
-          ),
-        );
       }
       const length = pockets ? 1.21 : 1.4,
         jaw = pockets ? 0.075 : 0;
@@ -257,111 +237,102 @@ export class TableRenderer {
         [side * 2.935, length],
         [side * 2.935, -length],
       ]);
-      rails.add(
-        box(
-          0.25,
-          0.105,
-          pockets ? 2.65 : 2.85,
-          this.woodMaterial,
-          side * 3.07,
-          0.027,
-          0,
-          true,
-        ),
-      );
-      rails.add(
-        box(
-          0.008,
-          0.007,
-          pockets ? 2.57 : 2.77,
-          this.brass,
-          side * 3.18,
-          0.081,
-          0,
-        ),
-      );
-      for (const x of [-2.98, 2.98])
-        rails.add(
-          box(
-            0.45,
-            0.105,
-            0.34,
-            this.woodMaterial,
-            x,
-            0.027,
-            side * 1.63,
-            true,
-          ),
-        );
-      if (pockets)
-        rails.add(
-          box(0.27, 0.105, 0.22, this.leather, 0, 0.027, side * 1.69, true),
-        );
     }
     return rails;
+  }
+  buildBed(pockets) {
+    const group = new THREE.Group();
+    const base = new THREE.Mesh(bedGeometry(pockets), this.woodMaterial);
+    base.name = pockets ? "Perforated slate bed" : "Solid carom bed";
+    base.rotation.x = -Math.PI / 2;
+    base.position.y = -0.245;
+    base.castShadow = base.receiveShadow = true;
+    group.add(base);
+    const surface = new THREE.Mesh(clothGeometry(pockets), this.cloth);
+    surface.name = pockets
+      ? "Felt with six recessed openings"
+      : "Continuous carom felt";
+    surface.rotation.x = -Math.PI / 2;
+    surface.position.y = 0.003;
+    surface.receiveShadow = true;
+    group.add(surface);
+    const deckMaterial = this.woodMaterial.clone();
+    deckMaterial.alphaMap = deckMask(pockets);
+    deckMaterial.alphaTest = 0.5;
+    const deck = new THREE.Mesh(
+      new THREE.PlaneGeometry(FRAME_WIDTH, FRAME_DEPTH),
+      deckMaterial,
+    );
+    deck.name = "Flush wooden pocket surround";
+    deck.rotation.x = -Math.PI / 2;
+    deck.position.y = 0.012;
+    deck.receiveShadow = true;
+    group.add(deck);
+    return group;
   }
   buildPockets() {
     this.pocketGroup = new THREE.Group();
     this.group.add(this.pocketGroup);
-    const holeGeo = new THREE.CircleGeometry(TABLE.pocketRadius * 1.13, 40);
-    const holeMat = new THREE.MeshBasicMaterial({ color: "#030908" });
-    const ringGeo = new THREE.TorusGeometry(
-      TABLE.pocketRadius * 1.16,
-      0.024,
-      8,
+    const liner = new THREE.MeshStandardMaterial({
+      color: "#211b17",
+      roughness: 0.95,
+      side: THREE.BackSide,
+    });
+    const linerGeo = new THREE.CylinderGeometry(
+      POCKET_OPENING - 0.001,
+      0.13,
+      0.22,
+      40,
+      1,
+      true,
+    );
+    const bottomGeo = new THREE.CircleGeometry(0.131, 40);
+    const bottomMat = new THREE.MeshBasicMaterial({ color: "#030807" });
+    const lipGeo = new THREE.RingGeometry(
+      POCKET_OPENING - 0.009,
+      POCKET_OPENING,
       40,
     );
-    const basketGeo = new THREE.CylinderGeometry(0.15, 0.11, 0.28, 20);
     POCKETS.forEach((p, i) => {
-      const hole = new THREE.Mesh(holeGeo, holeMat);
-      hole.rotation.x = -Math.PI / 2;
-      hole.position.set(p.x, 0.082, p.z);
-      this.pocketGroup.add(hole);
-      const ring = new THREE.Mesh(ringGeo, this.leather);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(p.x, 0.067, p.z);
-      this.pocketGroup.add(ring);
-      const basket = new THREE.Mesh(basketGeo, this.leather);
-      basket.position.set(p.x, -0.31, p.z);
-      this.pocketGroup.add(basket);
-      const plate = box(
-        0.29,
-        0.018,
-        0.14,
-        this.brass,
-        p.x + (p.x ? Math.sign(p.x) * 0.18 : 0),
-        0.084,
-        p.z + Math.sign(p.z) * 0.26,
-        true,
-      );
-      if (p.x) plate.rotation.y = (-Math.sign(p.x * p.z) * Math.PI) / 4;
-      this.pocketGroup.add(plate);
+      const wall = new THREE.Mesh(linerGeo, liner);
+      wall.position.set(p.x, -0.109, p.z);
+      this.pocketGroup.add(wall);
+      const bottom = new THREE.Mesh(bottomGeo, bottomMat);
+      bottom.rotation.x = -Math.PI / 2;
+      bottom.position.set(p.x, -0.22, p.z);
+      this.pocketGroup.add(bottom);
+      const lip = new THREE.Mesh(lipGeo, this.leather);
+      lip.rotation.x = -Math.PI / 2;
+      lip.position.set(p.x, 0.001, p.z);
+      this.pocketGroup.add(lip);
       const label = canvasTexture(64, 64, (c) => {
-        c.fillStyle = "#e0c694";
-        c.font = "500 30px Georgia";
+        c.fillStyle = "#dfcb9d";
+        c.font = "500 40px Georgia";
         c.textAlign = "center";
         c.textBaseline = "middle";
         c.fillText(String(i + 1), 32, 32);
       });
-      const sprite = new THREE.Sprite(
-        new THREE.SpriteMaterial({
+      const number = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.1, 0.1),
+        new THREE.MeshBasicMaterial({
           map: label,
           transparent: true,
-          opacity: 0.82,
-          depthTest: false,
+          depthWrite: false,
         }),
       );
-      sprite.scale.setScalar(0.12);
-      sprite.position.set(
-        p.x + (p.x ? Math.sign(p.x) * 0.09 : 0),
-        0.19,
-        p.z + Math.sign(p.z) * 0.27,
+      number.rotation.x = -Math.PI / 2;
+      number.position.set(
+        p.x + (p.x ? Math.sign(p.x) * 0.22 : 0),
+        0.015,
+        p.z + Math.sign(p.z) * 0.25,
       );
-      this.pocketGroup.add(sprite);
+      this.pocketGroup.add(number);
     });
   }
   setMode(pockets) {
     this.pockets = pockets;
+    this.poolBed.visible = pockets;
+    this.caromBed.visible = !pockets;
     this.pocketGroup.visible = pockets;
     this.poolRails.visible = pockets;
     this.caromRails.visible = !pockets;

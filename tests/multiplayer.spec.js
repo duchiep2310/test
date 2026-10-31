@@ -659,3 +659,109 @@ test("jump strength and real airborne motion synchronize to players and spectato
     await app.close();
   }
 });
+
+test("each online seat has its own character camera and spectators can follow either player", async ({
+  browser,
+}) => {
+  test.setTimeout(90000);
+  const { createRoomServer } = await import("../server/index.js");
+  const app = createRoomServer();
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const url = "http://127.0.0.1:" + app.server.address().port,
+    contexts = [],
+    errors = [];
+  async function join(name) {
+    const context = await browser.newContext({
+      viewport: { width: 1000, height: 850 },
+    });
+    contexts.push(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "velvet-settings",
+        JSON.stringify({ quality: "low" }),
+      ),
+    );
+    await page.goto(url);
+    await page.locator("#room-name").fill(name);
+    return page;
+  }
+  try {
+    const a = await join("An");
+    await a.locator("#create-room").click();
+    await expect(a.locator("#online-room")).toBeVisible();
+    const id = await a.locator("#current-room-code").textContent();
+    const b = await join("Bình");
+    await b.locator("#room-code").fill(id);
+    await b.locator("[data-role=player]").click();
+    const viewer = await join("Khán giả");
+    await viewer.locator("#room-code").fill(id);
+    await viewer.locator("[data-role=spectator]").click();
+    for (const p of [a, b, viewer])
+      await p.waitForFunction(
+        () =>
+          window.__game.online?.info?.ready &&
+          window.__game.scene.playerRenderer.states[1].valid,
+      );
+    await a.locator("#player-view").selectOption("first");
+    await b.locator("#player-view").selectOption("third");
+    await viewer.locator("#player-view").selectOption("top");
+    const initial = await Promise.all(
+      [a, b, viewer].map((p) =>
+        p.evaluate(() => ({
+          view: window.__game.scene.view,
+          seat: window.__game.scene.followSeat,
+          names: window.__game.scene.playerRenderer.people.map((p) => p.name),
+        })),
+      ),
+    );
+    expect(initial.map((x) => x.view)).toEqual(["first", "third", "top"]);
+    expect(initial[0].seat).toBe(0);
+    expect(initial[1].seat).toBe(1);
+    for (const x of initial) expect(x.names).toEqual(["An", "Bình"]);
+    await b.locator("#player-view").selectOption("first");
+    expect(
+      await b.evaluate(() =>
+        window.__game.scene.playerRenderer.people.map((p) => p.root.visible),
+      ),
+    ).toEqual([true, false]);
+    await a.locator("#cue-angle-range").fill("45");
+    for (const p of [b, viewer])
+      await p.waitForFunction(
+        () => Math.abs(window.__game.angle - Math.PI / 4) < 1e-6,
+      );
+    const poses = await Promise.all(
+      [a, b, viewer].map((p) =>
+        p.evaluate(() =>
+          window.__game.scene.playerRenderer.states[0].position.toArray(),
+        ),
+      ),
+    );
+    expect(poses[1]).toEqual(poses[0]);
+    expect(poses[2]).toEqual(poses[0]);
+    await viewer.locator("#player-view").selectOption("first");
+    await viewer.locator("#player-follow").selectOption("turn");
+    expect(await viewer.evaluate(() => window.__game.scene.followSeat)).toBe(0);
+    await viewer.locator("#player-follow").selectOption("opponent");
+    expect(await viewer.evaluate(() => window.__game.scene.followSeat)).toBe(1);
+    const room = app.hub.rooms.get(id),
+      before = room.match.physics.balls.map((b) => [b.id, b.x, b.z]);
+    await b.evaluate(() => {
+      window.__game.scene.orbit(45, -20);
+      window.__game.scene.pan(0.2, 0.1);
+    });
+    expect(await a.evaluate(() => window.__game.scene.view)).toBe("first");
+    expect(await b.evaluate(() => window.__game.scene.view)).toBe("first");
+    expect(room.match.shots).toBe(0);
+    expect(room.match.angle).toBeCloseTo(Math.PI / 4, 6);
+    expect(room.match.physics.balls.map((b) => [b.id, b.x, b.z])).toEqual(
+      before,
+    );
+    expect(errors).toEqual([]);
+  } finally {
+    for (const context of contexts) await context.close();
+    await app.close();
+  }
+});

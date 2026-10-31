@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node tests/physics.test.js && node tests/rules.test.js && node tests/ai.test.js && node tests/rooms.test.js",
+    "test": "node tests/physics.test.js && node tests/rules.test.js && node tests/ai.test.js && node tests/rooms.test.js && node tests/geometry.test.js",
     "test:browser": "playwright test",
     "start": "node server/index.js",
     "dev:online": "node scripts/dev-online.mjs"

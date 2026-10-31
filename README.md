@@ -37,6 +37,16 @@ Khi đã dọn hết nhóm bi trong 8-ball, nút đánh đổi thành **Chọn l
 
 Thanh **GÓC CƠ** nằm ngay dưới mặt bàn: kéo thanh để ngắm 360°, bấm **↶ / ↷** để chỉnh mỗi lần 0,1°, hoặc giữ nút để xoay liên tục. Phím **← / →** cũng chỉnh 0,1° khi không đang nhập liệu; khi focus hình bi xoáy, các phím này vẫn chỉnh xoáy. Góc cơ và camera là hai điều khiển riêng. Thanh góc chỉ cho phép chỉnh khi có thể đánh; người xem và người chưa tới lượt chỉ thấy góc ngắm được đồng bộ của người đang đánh.
 
+## Lỗ chìm, nhân vật và camera
+
+Sáu miệng lỗ Pool được khoét thật qua nỉ và thân bàn, phần miệng ăn vào mép trong mặt nỉ. Lòng lỗ bọc da chìm xuống dưới mặt bàn, không có vòng tròn/ốp kim loại nổi lên trên. Mặt gỗ che phần nỉ dư ngoài băng; Carom và Three-Cushion vẫn dùng mặt bàn liền không lỗ. Tâm bắt lỗ và kích thước vùng chơi giữ theo dữ liệu vật lý của từng chế độ.
+
+Hai nhân vật 3D được tạo bằng hình học nhẹ, áo xanh cho người chơi 1 và áo đỏ cho người chơi 2, tên lấy từ hồ sơ/phòng hiện tại. Người tới lượt đứng sau hướng cơ, người còn lại đứng chờ cạnh bàn. Cùng dữ liệu lượt và hướng ngắm tạo cùng vị trí nhân vật trên các máy. Nhân vật chỉ là phần hiển thị; không có điều khiển đi bộ hoặc va chạm người với bi, và chưa có tùy chỉnh ngoại hình.
+
+Thanh **GÓC NHÌN** phía trên bàn có **Toàn bàn / Ngôi I · qua mắt nhân vật / Ngôi III · sau lưng nhân vật / Từ trên xuống**. Ngôi I đặt camera tại mắt và ẩn nhân vật đang nhìn để không che cơ; ngôi III đặt camera sau lưng, vẫn thấy nhân vật. **THEO NHÂN VẬT** chọn Bạn, Đối thủ hoặc Người đang đánh. Trong phòng online, Bạn luôn gắn với ghế của bạn; khán giả chọn người chơi 1/2 hoặc theo lượt. Chơi local cùng máy mặc định theo người tới lượt; đấu AI mặc định theo người chơi, không tự đổi sang AI.
+
+Kéo chuột phải hoặc dùng hai ngón tay để nhìn quanh. Ở ngôi I/III, kéo ngang chuột trái/ngón tay để xoay hướng cơ; thanh **GÓC CƠ** vẫn dùng để ngắm tinh. **Về hướng cơ** căn lại camera theo nhân vật; **R** trở về góc toàn bàn. WASD trong ngôi I/III chỉnh hướng nhìn, không di chuyển nhân vật. Camera giữ vị trí khi bi đang lăn. Mọi lựa chọn góc nhìn thuộc riêng trình duyệt của bạn, không đổi camera hay lượt của đối phương.
+
 ## Nhảy bi
 
 Ngay dưới thanh góc cơ, bật **↗ Nhảy bi**, kéo **MỨC NHẢY** (10–100%), chỉnh hướng/lực rồi đánh như bình thường. Mức bật ban đầu là 80%; lực đánh và mức nhảy cùng quyết định độ cao/tầm nhảy. Bi có đủ độ cao sẽ vượt qua bi cản; nhảy thấp vẫn có thể chạm bi. Nhảy tự tắt sau khi kết thúc cú đánh hoặc bắt đầu ván mới. Chỉ người tới lượt được thay đổi; phòng online đồng bộ cả lựa chọn lẫn độ cao thật cho hai người và người xem.
@@ -103,7 +113,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Suite hiện gồm 86 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 17 luồng Chromium. Hồi quy mới kiểm tra góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Suite hiện gồm 88 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 19 luồng Chromium. Hồi quy mới kiểm tra lỗ khoét thật bằng tia giao hình học, camera qua mắt/sau lưng, nhận diện đúng ghế trong phòng online, góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 

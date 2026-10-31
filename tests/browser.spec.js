@@ -651,3 +651,133 @@ test("jump controls launch the cue over a blocker, render its real height and la
     .screenshot({ path: "test-results/jump-mobile.png" });
   expect(errors).toEqual([]);
 });
+
+test("player cameras follow the correct character, allow aiming and keep actual pocket openings", async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await offline(page);
+  await page.evaluate(() => {
+    window.__game.loop.stop();
+    window.__game.render(0.016);
+  });
+  expect(
+    await page.evaluate(() => window.__game.scene.playerRenderer.people.length),
+  ).toBe(2);
+  await page.locator("#player-view").selectOption("first");
+  let view = await page.evaluate(() => {
+    const s = window.__game.scene;
+    s.playerRenderer.people[0].eye.getWorldPosition(s.playerLook);
+    return {
+      mode: s.view,
+      seat: s.followSeat,
+      visible: s.playerRenderer.people.map((p) => p.root.visible),
+      error: s.camera.position.distanceTo(s.playerLook),
+    };
+  });
+  expect(view).toMatchObject({
+    mode: "first",
+    seat: 0,
+    visible: [false, true],
+  });
+  expect(view.error).toBeLessThan(1e-6);
+  await page.locator("#player-view").selectOption("third");
+  expect(
+    await page.evaluate(() =>
+      window.__game.scene.playerRenderer.people.every((p) => p.root.visible),
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => window.__game.scene.playerRenderer.people[0].label.visible,
+    ),
+  ).toBe(false);
+  await page
+    .locator("#scene")
+    .screenshot({ path: "test-results/player-third.png" });
+  await page.locator("#player-follow").selectOption("opponent");
+  expect(await page.evaluate(() => window.__game.scene.followSeat)).toBe(1);
+  await page.locator("#player-follow").selectOption("self");
+  await page.locator("#player-view").selectOption("first");
+  await page.locator("#cue-angle-range").fill("90");
+  await page.evaluate(() => window.__game.render(0.016));
+  const pose = await page.evaluate(() =>
+    window.__game.scene.playerRenderer.states[0].position.toArray(),
+  );
+  expect(pose[0]).toBeCloseTo(-1.4, 6);
+  expect(pose[2]).toBeCloseTo(-2.2, 6);
+  await page.locator("#scene").scrollIntoViewIfNeeded();
+  const r = await page.locator("#scene").boundingBox();
+  const before = await page.evaluate(() => window.__game.angle);
+  await page.mouse.move(r.x + r.width * 0.45, r.y + r.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(r.x + r.width * 0.45 + 40, r.y + r.height * 0.6);
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__game.angle)).toBeGreaterThan(
+    before,
+  );
+  await page.evaluate(() => window.__game.render(0.016));
+  const angle = await page.evaluate(() => window.__game.angle);
+  await page.evaluate(() => window.__game.scene.orbit(40, 10));
+  expect(await page.evaluate(() => window.__game.scene.view)).toBe("first");
+  expect(await page.evaluate(() => window.__game.angle)).toBe(angle);
+  await page.locator("#center-player-view").click();
+  expect(await page.evaluate(() => window.__game.scene.playerYaw)).toBe(0);
+  await page
+    .locator("#scene")
+    .screenshot({ path: "test-results/player-first.png" });
+  const eye = await page.evaluate(() =>
+    window.__game.scene.camera.position.toArray(),
+  );
+  await page.locator("#shoot").click();
+  expect(await page.evaluate(() => window.__game.state)).toBe(
+    "SHOT_IN_PROGRESS",
+  );
+  await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 15; i++) g.fixedUpdate(1 / 240);
+    g.render(0.016);
+  });
+  expect(
+    await page.evaluate(() => window.__game.scene.camera.position.toArray()),
+  ).toEqual(eye);
+  await page.locator("#player-view").selectOption("top");
+  const pockets = await page.evaluate(() => {
+    const s = window.__game.scene,
+      ray = s.raycaster;
+    const base = s.table.poolBed.children[0],
+      cloth = s.table.poolBed.children[1];
+    s.table.group.updateWorldMatrix(true, true);
+    const points = [
+      [-2.8, -1.4],
+      [0, -1.4],
+      [2.8, -1.4],
+      [-2.8, 1.4],
+      [0, 1.4],
+      [2.8, 1.4],
+    ];
+    return points.map(([x, z]) => {
+      ray.set(
+        s.camera.position.clone().set(x, 1, z),
+        s.camera.position.clone().set(0, -1, 0),
+      );
+      return [
+        ray.intersectObject(base).length,
+        ray.intersectObject(cloth).length,
+      ];
+    });
+  });
+  expect(pockets).toEqual(Array.from({ length: 6 }, () => [0, 0]));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("#player-view").selectOption("third");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.locator("#player-follow").selectOption("opponent");
+  expect(await page.evaluate(() => window.__game.scene.followSeat)).toBe(1);
+  expect(errors).toEqual([]);
+});
