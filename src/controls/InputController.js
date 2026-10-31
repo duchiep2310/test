@@ -6,6 +6,7 @@ export class InputController {
     this.pointers = new Map();
     this.listeners = [];
     this.keys = new Set();
+    this.cueTurns = new Map();
     const on = (target, type, fn, options) => {
       target.addEventListener(type, fn, options);
       this.listeners.push(() => target.removeEventListener(type, fn, options));
@@ -13,7 +14,7 @@ export class InputController {
     const aim = (e) => {
       const p = game.scene.screenToTable(e.clientX, e.clientY);
       if (p && game.cue)
-        game.angle = Math.atan2(p.z - game.cue.z, p.x - game.cue.x);
+        game.setAngle(Math.atan2(p.z - game.cue.z, p.x - game.cue.x));
     };
     on(this.canvas, "contextmenu", (e) => e.preventDefault());
     on(this.canvas, "pointerdown", (e) => {
@@ -88,9 +89,17 @@ export class InputController {
       if (
         game.lobbyOpen ||
         e.target.matches("input,select,textarea,[contenteditable=true]") ||
+        e.target.closest('[role="slider"]') ||
         document.querySelector("dialog[open]")
       )
         return;
+      if (["ArrowLeft", "ArrowRight"].includes(e.code)) {
+        e.preventDefault();
+        game.setAngle(
+          game.angle + ((e.code === "ArrowLeft" ? -1 : 1) * Math.PI) / 1800,
+        );
+        return;
+      }
       if (
         [
           "KeyW",
@@ -120,10 +129,23 @@ export class InputController {
       if (e.code === "Escape") game.pause();
     });
     on(window, "keyup", (e) => this.keys.delete(e.code));
-    on(window, "blur", () => this.keys.clear());
-    on(document, "visibilitychange", () => {
-      if (document.hidden) this.keys.clear();
+    on(window, "blur", () => {
+      this.keys.clear();
+      this.cueTurns.clear();
     });
+    on(document, "visibilitychange", () => {
+      if (document.hidden) {
+        this.keys.clear();
+        this.cueTurns.clear();
+      }
+    });
+  }
+  beginCueTurn(direction) {
+    if (this.game.setAngle(this.game.angle + (direction * Math.PI) / 1800))
+      this.cueTurns.set(direction, performance.now());
+  }
+  endCueTurn(direction) {
+    this.cueTurns.delete(direction);
   }
   update(dt) {
     const active = document.activeElement;
@@ -134,8 +156,18 @@ export class InputController {
       active?.closest("input,select,textarea,[contenteditable=true]")
     ) {
       this.keys.clear();
+      this.cueTurns.clear();
       return;
     }
+    if (!this.game.canShoot || this.game.isAI) this.cueTurns.clear();
+    let turn = 0;
+    const now = performance.now();
+    for (const [direction, started] of this.cueTurns)
+      if (now - started > 250) turn += direction;
+    if (turn)
+      this.game.setAngle(
+        this.game.angle + (turn * Math.min(dt, 0.05) * Math.PI) / 18,
+      );
     if (!this.keys.size) return;
     const right = Number(this.keys.has("KeyD")) - Number(this.keys.has("KeyA"));
     const forward =
@@ -167,5 +199,6 @@ export class InputController {
     this.listeners.forEach((remove) => remove());
     this.pointers.clear();
     this.keys.clear();
+    this.cueTurns.clear();
   }
 }

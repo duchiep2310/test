@@ -235,6 +235,92 @@ test("player names work offline, persist and support both local seats", async ({
 });
 
 // A private test fixture changes the server's starting balls. No debug endpoint is exposed.
+test("last eight can be aimed, called and won online while other players can only watch the cue", async ({
+  browser,
+}) => {
+  test.setTimeout(90000);
+  const { createRoomServer } = await import("../server/index.js");
+  const app = createRoomServer();
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const url = "http://127.0.0.1:" + app.server.address().port,
+    contexts = [],
+    errors = [];
+  async function join(name) {
+    const context = await browser.newContext({
+      viewport: { width: 1000, height: 850 },
+    });
+    contexts.push(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "velvet-settings",
+        JSON.stringify({ quality: "low" }),
+      ),
+    );
+    await page.goto(url);
+    await page.locator("#room-name").fill(name);
+    return page;
+  }
+  try {
+    const a = await join("An");
+    await a.locator("#create-room").click();
+    await expect(a.locator("#online-room")).toBeVisible();
+    const id = await a.locator("#current-room-code").textContent();
+    const b = await join("Bình");
+    await b.locator("#room-code").fill(id);
+    await b.locator("[data-role=player]").click();
+    const viewer = await join("Khán giả");
+    await viewer.locator("#room-code").fill(id);
+    await viewer.locator("[data-role=spectator]").click();
+    const room = app.hub.rooms.get(id);
+    room.match.mode.isBreak = false;
+    room.match.mode.groups = ["solids", "stripes"];
+    room.match.physics.setBalls([
+      { id: 0, x: 0, z: 0 },
+      { id: 8, x: 0, z: -0.7 },
+    ]);
+    room.match.state = "PLAYER_TURN";
+    room.match.revision++;
+    room.broadcast();
+    for (const p of [a, b, viewer])
+      await p.waitForFunction(
+        () =>
+          window.__game.physics.balls.length === 2 &&
+          !window.__game.mode.isBreak,
+      );
+    await a.locator("#cue-angle-range").fill("270");
+    await a.locator("#power").fill("38");
+    for (const p of [b, viewer]) {
+      await expect(p.locator("#cue-angle-range")).toBeDisabled();
+      await expect(p.locator("#cue-angle-left")).toBeDisabled();
+      await expect(p.locator("#cue-angle-value")).toHaveText("270.0°");
+      expect(await p.evaluate(() => window.__game.setAngle(0))).toBe(false);
+    }
+    await a.locator("#shoot").click();
+    await expect(a.locator("#shot-call-dialog")).toBeVisible();
+    expect(room.match.shots).toBe(0);
+    await a.locator('[data-shot-pocket="1"]').click();
+    await a.locator("#shot-call-confirm").click();
+    await a.waitForFunction(() => window.__game.state === "GAME_OVER");
+    expect(room.match.mode.winner).toBe(0);
+    expect(
+      room.match.events.some(
+        (e) => e.type === "pocket" && e.ball === 8 && e.pocket === 1,
+      ),
+    ).toBe(true);
+    for (const p of [a, b, viewer]) {
+      await expect(p.locator("#series-values")).toHaveText("1 — 0");
+      await expect(p.locator(".result-series")).toContainText("1 — 0");
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    for (const context of contexts) await context.close();
+    await app.close();
+  }
+});
+
 test("shared aim, aggregate scores, rematch and repeat cue placement sync across players and viewers", async ({
   browser,
 }) => {

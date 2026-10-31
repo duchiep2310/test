@@ -1,0 +1,181 @@
+.cue-angle-control {
+  display: grid;
+  grid-template-columns: 60px 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 4px;
+  padding: 14px 20px 10px;
+  border-top: 1px solid #dce2d3;
+  background: #f5f7ed;
+}
+.cue-angle-heading {
+  display: grid;
+  gap: 5px;
+}
+.cue-angle-heading label {
+  font-size: 8px;
+  color: #899878;
+  letter-spacing: 1px;
+}
+.cue-angle-heading output {
+  font:
+    20px Georgia,
+    serif;
+  color: #45643b;
+  font-variant-numeric: tabular-nums;
+}
+.cue-angle-control button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #cbd7bc;
+  border-radius: 5px;
+  background: #e8eedc;
+  color: #47683a;
+  font-size: 23px;
+  touch-action: none;
+  user-select: none;
+}
+.cue-angle-control button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.cue-angle-track {
+  min-width: 0;
+}
+#cue-angle-range {
+  width: 100%;
+  margin: 0;
+  accent-color: #577c43;
+  cursor: ew-resize;
+}
+#cue-angle-range:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.cue-angle-scale {
+  display: flex;
+  justify-content: space-between;
+  color: #a0ab92;
+  font-size: 7px;
+  margin-top: 3px;
+}
+#cue-angle-help {
+  grid-column: 2 / -1;
+  font-size: 8px;
+  line-height: 1.5;
+  color: #8c9b7b;
+}
+#shot-call-dialog {
+  width: min(520px, calc(100vw - 30px));
+}
+#shot-call-dialog h2 {
+  font:
+    30px Georgia,
+    serif;
+  color: #3d5f35;
+  margin: 12px 0;
+}
+#shot-call-description {
+  color: #81936f;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.shot-call-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 1fr);
+  position: relative;
+  gap: 65px 16px;
+  border: 8px solid #644d37;
+  border-radius: 9px;
+  padding: 10px;
+  margin-top: 22px;
+  background: #226d5f;
+  box-shadow: inset 0 0 25px #09392e55;
+}
+.shot-call-board button {
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  border: 1px solid #b3c5a84d;
+  border-radius: 5px;
+  padding: 9px 2px;
+  color: #eef3de;
+  background: #173e35;
+  font-size: 10px;
+}
+.shot-call-board button strong {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  background: #0c211c;
+  border: 1px solid #ae9966;
+  border-radius: 50%;
+  font-size: 12px;
+}
+.shot-call-board button[aria-pressed="true"] {
+  background: #d6bd81;
+  border-color: #fff0bf;
+  color: #283b24;
+}
+.shot-call-board button:hover {
+  border-color: #e4d3a5;
+}
+#shot-call-ball {
+  position: absolute;
+  left: calc(50% - 18px);
+  top: calc(50% - 18px);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 7px solid #151f1c;
+  border-radius: 50%;
+  font:
+    14px Georgia,
+    serif;
+  color: #1c2820;
+  background: #f5f3e8;
+  box-shadow: 2px 4px 8px #052f28a6;
+}
+#shot-call-selection {
+  font-size: 11px;
+  color: #7f906d;
+  min-height: 30px;
+  line-height: 1.6;
+  margin: 14px 0;
+}
+#shot-call-confirm:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (max-width: 650px) {
+  .cue-angle-control {
+    grid-template-columns: 49px 32px minmax(0, 1fr) 32px;
+    padding: 12px 13px 9px;
+    column-gap: 8px;
+  }
+  .cue-angle-control button {
+    width: 32px;
+    height: 34px;
+  }
+  .cue-angle-heading output {
+    font-size: 17px;
+  }
+  #cue-angle-help {
+    font-size: 7px;
+  }
+  #shot-call-dialog h2 {
+    font-size: 25px;
+  }
+  .shot-call-board {
+    gap: 55px 8px;
+    padding: 7px;
+    border-width: 6px;
+  }
+  .shot-call-board button {
+    font-size: 9px;
+  }
+}

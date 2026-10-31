@@ -125,6 +125,26 @@ export class Game {
   get ballInHand() {
     return this.state === S.BALL_IN_HAND;
   }
+  get needsPocketCall() {
+    return (
+      !this.mode.isBreak &&
+      (this.mode.id === "ten" ||
+        (this.mode.id === "eight" &&
+          this.mode.legalTargets(this.physics.balls).includes(8)))
+    );
+  }
+  setAngle(angle) {
+    if (
+      this.lobbyOpen ||
+      !this.canShoot ||
+      this.isAI ||
+      !Number.isFinite(angle)
+    )
+      return false;
+    this.angle = Math.atan2(Math.sin(angle), Math.cos(angle));
+    this.notify();
+    return true;
+  }
   onPhysicsEvent(event) {
     if (![S.SHOT_IN_PROGRESS, S.BALLS_SETTLING].includes(this.state)) return;
     this.shotEvents.push({ ...event });
@@ -134,20 +154,18 @@ export class Game {
   }
   shoot(automatic = false) {
     if (this.lobbyOpen) return false;
-    if (this.online) return this.online.shoot();
     if (!this.canShoot || (!automatic && this.isAI)) return false;
     const remaining = this.mode.legalTargets(this.physics.balls);
-    if (
-      (this.mode.id === "ten" ||
-        (this.mode.id === "eight" && remaining.includes(8))) &&
-      !this.mode.isBreak &&
-      this.calledPocket == null
-    ) {
+    if (this.needsPocketCall && this.calledPocket == null) {
       this.message =
-        "Call a pocket before shooting. Select one of the six pocket dots.";
+        this.mode.id === "eight"
+          ? "Chọn lỗ cho bi số 8 để hoàn tất cú đánh."
+          : "Chọn lỗ được gọi cho cú đánh này.";
       this.notify();
+      if (!automatic) this.onCallRequired?.();
       return false;
     }
+    if (this.online) return this.online.shoot();
     if (
       this.mode.id === "ten" &&
       !this.mode.isBreak &&

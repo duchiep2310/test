@@ -31,6 +31,12 @@ Thanh điều hướng trên bàn mở nhanh **Sảnh chơi / Luật chơi / Đ�
 
 Sau lỗi cho quyền đặt bi trắng, nhấn lên bàn để đặt. Trước khi đánh, có thể chọn **Đặt lại bi trắng** rồi nhấn vị trí mới, lặp lại nhiều lần. Vị trí chồng bi/ngoài bàn vẫn bị từ chối; chỉ người tới lượt được đặt. Cú đánh hợp lệ bắt đầu sẽ khóa quyền đặt lại cho đến lần được cấp quyền tiếp theo.
 
+## Bi số 8 cuối cùng và góc cơ
+
+Khi đã dọn hết nhóm bi trong 8-ball, nút đánh đổi thành **Chọn lỗ & đánh bi 8** nếu chưa gọi lỗ. Bấm nút (hoặc dùng Space khi không nhập liệu) để mở sơ đồ sáu lỗ, chọn lỗ rồi bấm **Đánh bi số 8**. Các số 1–6 trùng với số cạnh lỗ trên bàn. **Quay lại ngắm** hoặc Esc đóng bảng mà không đánh. Có thể chọn lỗ trước qua bảng **Call your shot**. Luật thắng vẫn yêu cầu bi số 8 vào đúng lỗ đã gọi và không phạm lỗi; máy chủ xác thực cùng luật trong phòng online. 10-ball cũng mở bảng chọn lỗ khi chưa gọi lỗ.
+
+Thanh **GÓC CƠ** nằm ngay dưới mặt bàn: kéo thanh để ngắm 360°, bấm **↶ / ↷** để chỉnh mỗi lần 0,1°, hoặc giữ nút để xoay liên tục. Phím **← / →** cũng chỉnh 0,1° khi không đang nhập liệu; khi focus hình bi xoáy, các phím này vẫn chỉnh xoáy. Góc cơ và camera là hai điều khiển riêng. Thanh góc chỉ cho phép chỉnh khi có thể đánh; người xem và người chưa tới lượt chỉ thấy góc ngắm được đồng bộ của người đang đánh.
+
 ## Aim guide
 
 Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Offline, lựa chọn được nhớ trên trình duyệt. Online, Aim guide là thiết lập chung của phòng: một trong hai người chơi đổi thì cả hai và khán giả nhận cùng trạng thái, kể cả vào sau hoặc tải lại trang. Khán giả không được đổi thiết lập của phòng.
@@ -89,7 +95,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Bản phòng online đã đạt 76 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 13 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Suite hiện gồm 76 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 15 luồng Chromium. Hồi quy mới kiểm tra góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 
@@ -102,7 +108,7 @@ Bản phòng online đã đạt 76 kiểm tra Node (vật lý, luật, AI và HT
 | Camera            | Nút camera đổi góc nghiêng/nhìn từ trên; kéo chuột phải hoặc `Alt` + kéo để xoay; cuộn hoặc phím **+ / −** để zoom sâu hơn; giữ **W/A/S/D** để di chuyển góc nhìn, **R** để về giữa bàn; nút **Mở rộng bàn** tăng diện tích hiển thị; trên cảm ứng dùng hai ngón tay để xoay/pinch zoom |
 | Tạm dừng/tiếp tục | Nút pause hoặc `Esc`; chuyển tab tự tạm dừng khi chơi offline; trận online tiếp tục trên máy chủ                                                                                                                                                                                        |
 | Bi cái trong tay  | Nhấn một vị trí trống trong bàn, tránh lỗ và bi khác                                                                                                                                                                                                                                    |
-| Gọi bi/lỗ         | Bảng **Call your shot** dưới bàn; 10-ball chọn cả bi và lỗ, cú kết thúc 8-ball chọn lỗ                                                                                                                                                                                                  |
+| Gọi bi/lỗ         | Bấm Đánh để chọn lỗ nếu chưa gọi, hoặc dùng bảng **Call your shot** dưới bàn; 10-ball chọn cả bi và lỗ, cú kết thúc 8-ball chọn lỗ                                                                                                                                                                                                  |
 
 Đổi chế độ bằng thẻ phía trên hoặc **New match**. Trong **Settings**, chọn local/AI, độ khó Easy/Medium/Hard, chất lượng đồ họa, màu nỉ, kiểu bi, âm lượng, đường ngắm và ngôn ngữ. Tiếng Việt áp dụng cho các điều khiển chính; luật và bình luận vẫn bằng tiếng Anh. Điểm đích carom áp dụng từ trận mới.
 

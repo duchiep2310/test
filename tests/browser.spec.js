@@ -184,15 +184,24 @@ test("called final eight is resolved from physical pocket events and saved to hi
     g.physics.setBalls([
       { id: 0, x: 0, z: 0 },
       { id: 8, x: 0, z: -0.7 },
-      { id: 9, x: 2, z: 0 },
     ]);
-    g.angle = -Math.PI / 2;
-    g.power = 0.38;
     g.notify();
   });
   await expect(page.locator("#call-panel")).toBeVisible();
-  await page.locator('[data-pocket="1"]').click();
+  await page.locator("#cue-angle-range").fill("270");
+  await page.locator("#power").fill("38");
   await page.locator("#shoot").click();
+  await expect(page.locator("#shot-call-dialog")).toBeVisible();
+  await expect(page.locator("#shot-call-confirm")).toBeDisabled();
+  expect(await page.evaluate(() => window.__game.shots)).toBe(0);
+  await page.locator("#shot-call-cancel").click();
+  expect(await page.evaluate(() => window.__game.calledPocket)).toBeNull();
+  await page.locator("#shoot").click();
+  await page.locator('[data-shot-pocket="1"]').click();
+  await page.locator("#shot-call-confirm").click();
+  expect(await page.evaluate(() => window.__game.state)).toBe(
+    "SHOT_IN_PROGRESS",
+  );
   await page.evaluate(() => {
     const g = window.__game;
     for (let i = 0; i < 6000; i++) g.fixedUpdate(1 / 240);
@@ -212,6 +221,70 @@ test("called final eight is resolved from physical pocket events and saved to hi
   await page.reload();
   await page.locator("#play-local").click();
   await expect(page.locator("#series-values")).toHaveText("1 — 0");
+});
+
+test("cue angle slider, fine buttons and arrow keys aim without moving the camera or balls", async ({
+  page,
+}) => {
+  await offline(page);
+  const before = await page.evaluate(() => ({
+    camera: window.__game.scene.target.toArray(),
+    balls: window.__game.physics.balls.map((b) => [b.id, b.x, b.z]),
+  }));
+  await page.locator("#cue-angle-range").fill("359.9");
+  await page.locator("#cue-angle-right").click();
+  await expect(page.locator("#cue-angle-value")).toHaveText("0.0°");
+  await page.locator("#cue-angle-left").click();
+  await expect(page.locator("#cue-angle-value")).toHaveText("359.9°");
+  await page.locator("#cue-angle-range").fill("90");
+  await page.locator("#cue-angle-range").press("ArrowLeft");
+  await expect(page.locator("#cue-angle-value")).toHaveText("89.9°");
+  await page.evaluate(() => document.activeElement.blur());
+  await page.keyboard.press("ArrowRight");
+  expect(await page.evaluate(() => window.__game.angle)).toBeCloseTo(
+    Math.PI / 2,
+    6,
+  );
+  await page.locator("#spin-pad").focus();
+  await page.keyboard.press("ArrowRight");
+  expect(await page.evaluate(() => window.__game.angle)).toBeCloseTo(
+    Math.PI / 2,
+    6,
+  );
+  expect(await page.evaluate(() => window.__game.spin.x)).toBeCloseTo(0.1, 6);
+  await page.locator("#cue-angle-right").scrollIntoViewIfNeeded();
+  const r = await page.locator("#cue-angle-right").boundingBox();
+  await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);
+  await page.mouse.down();
+  await page.waitForFunction(() => window.__game.angle > Math.PI / 2 + 0.01);
+  await page.mouse.up();
+  const stopped = await page.evaluate(() => window.__game.angle);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__game.angle)).toBe(stopped);
+  expect(
+    await page.evaluate(() => ({
+      camera: window.__game.scene.target.toArray(),
+      balls: window.__game.physics.balls.map((b) => [b.id, b.x, b.z]),
+    })),
+  ).toEqual(before);
+  await page.locator("#pause").click();
+  await expect(page.locator("#cue-angle-range")).toBeDisabled();
+  await page.locator("#pause").click();
+  await expect(page.locator("#cue-angle-range")).toBeEnabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .locator("#cue-angle-control")
+    .screenshot({ path: "test-results/cue-angle-mobile.png" });
+  await page.evaluate(() => window.__game.loop.stop());
+  await page.locator("#shoot").click();
+  await expect(page.locator("#cue-angle-range")).toBeDisabled();
+  await expect(page.locator("#cue-angle-left")).toBeDisabled();
+  await expect(page.locator("#cue-angle-right")).toBeDisabled();
 });
 
 test("AI takes the next turn using the same engine", async ({ page }) => {

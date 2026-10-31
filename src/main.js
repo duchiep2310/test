@@ -1,5 +1,7 @@
 import "./styles/main.css";
 import { MatchControls } from "./ui/MatchControls.js";
+import { CueAngleControl } from "./ui/CueAngleControl.js";
+import { ShotCallDialog } from "./ui/ShotCallDialog.js";
 import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
@@ -60,6 +62,8 @@ app.innerHTML = `
 let game;
 let lobby = null;
 let matchControls = null;
+let cueAngleControl = null;
+let shotCallDialog = null;
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -233,12 +237,18 @@ function update(g) {
                 : g.state === "BALL_IN_HAND"
                   ? "Đặt bi cái lên bàn"
                   : "Chờ lượt của bạn";
-  const needsCall =
-    !g.mode.isBreak &&
-    (g.mode.id === "ten" || (g.mode.id === "eight" && targets.includes(8)));
+  const needsCall = g.needsPocketCall;
+  if (needsCall && g.canShoot && !g.isAI)
+    shoot.innerHTML = `<span>${g.calledPocket == null ? (g.mode.id === "eight" ? "Chọn lỗ & đánh bi 8" : "Chọn lỗ & đánh") : (labels[g.settings.language] || labels.en).shoot}</span>${icon("arrow", 21)}`;
   $("#call-panel").hidden = !needsCall;
   $("#call-ball-label").hidden = g.mode.id !== "ten";
   if (needsCall) {
+    text(
+      "#call-description",
+      g.mode.id === "eight"
+        ? "Bi số 8 cuối cùng: chọn lỗ bên dưới hoặc bấm Đánh bi để mở bảng chọn."
+        : "Choose a ball and a pocket before shooting.",
+    );
     const available = g.physics.balls
       .filter((b) => b.active && b.id !== 0)
       .map((b) => b.id)
@@ -331,6 +341,8 @@ function update(g) {
   }
   lobby?.update();
   matchControls?.update();
+  cueAngleControl?.update();
+  shotCallDialog?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
@@ -348,6 +360,8 @@ try {
   lobby = new RoomLobby(game);
   window.__lobby = lobby;
   matchControls = new MatchControls(game, lobby);
+  cueAngleControl = new CueAngleControl(game);
+  shotCallDialog = new ShotCallDialog(game);
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;
