@@ -35,6 +35,14 @@ Sau lỗi cho quyền đặt bi trắng, nhấn lên bàn để đặt. Trước
 
 Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Offline, lựa chọn được nhớ trên trình duyệt. Online, Aim guide là thiết lập chung của phòng: một trong hai người chơi đổi thì cả hai và khán giả nhận cùng trạng thái, kể cả vào sau hoặc tải lại trang. Khán giả không được đổi thiết lập của phòng.
 
+## Không gian câu lạc bộ
+
+Bàn nằm trong một phòng club tông xanh trầm: sàn gỗ, thảm dệt, tường ốp gỗ, bảng hiệu Velvet, giá cơ và cụm đèn treo xanh/đồng. Bàn dùng khung gỗ óc chó bo cạnh, viền đồng, mặt nỉ có vân dệt, băng vát, dấu ngắm khảm và miệng lỗ bọc da. Bi có phản chiếu ánh sáng mềm. Texture được tạo bằng Canvas ngay trong trình duyệt, không tải mô hình hoặc ảnh từ dịch vụ ngoài.
+
+Góc nhìn nghiêng mặc định mở rộng để thấy căn phòng; dùng **+** để tiến gần bàn, **R** để trở về góc mặc định và nút camera để nhìn từ trên xuống. Các bức tường phía trước camera và đèn có thể che bàn được tự ẩn. Pool có sáu lỗ; Carom/Three-Cushion dùng băng liền, không có lỗ. Hình học trang trí không tham gia vật lý và không thay đổi kích thước bàn chơi.
+
+**Graphics quality** vẫn có ba mức: Low tắt bóng động và giá cơ trang trí; Medium dùng bóng 1024; High dùng bóng 2048 và độ phân giải hiển thị cao hơn. Bóng tiếp xúc dưới bàn giữ lại ở cả ba mức. Cảnh chỉ vẽ lại khi bi/cơ/camera hoặc cài đặt thay đổi; đồng hồ vật lý vẫn dùng timestep cố định. Tài nguyên Three.js được giải phóng khi hủy cảnh.
+
 ## Góc nhìn và bàn lớn
 
 Bàn hiển thị lớn hơn mặc định. Nút bốn góc **Mở rộng bàn** dùng toàn bộ chiều rộng và vẫn giữ bảng điểm, lực đánh, xoáy. Các nút **+ / −** phóng to/thu nhỏ; **R** đặt lại camera. Giữ **W** tiến góc nhìn, **S** lùi, **A/D** sang trái/phải theo hướng camera hiện tại. Các phím chỉ điều khiển camera riêng của bạn, không di chuyển bi hoặc ảnh hưởng người chơi khác. Khi nhập tên, mở hộp thoại hoặc ở sảnh, các phím này dành cho việc nhập liệu.

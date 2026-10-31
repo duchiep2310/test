@@ -2,11 +2,14 @@ import * as THREE from "three";
 import { TABLE } from "../core/Constants.js";
 import { TableRenderer } from "./TableRenderer.js";
 import { BallRenderer } from "./BallRenderer.js";
+import { ClubEnvironment } from "./ClubEnvironment.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 export class SceneManager {
   constructor(container, callbacks = {}) {
     this.container = container;
     this.callbacks = callbacks;
+    this.dirty = true;
     this.scene = new THREE.Scene();
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -18,15 +21,15 @@ export class SceneManager {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
+    this.renderer.toneMappingExposure = 1.05;
     this.canvas = this.renderer.domElement;
     this.canvas.setAttribute("aria-label", "Interactive 3D billiards table");
     this.canvas.style.touchAction = "none";
     container.append(this.canvas);
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.05, 60);
-    this.target = new THREE.Vector3(0, -0.04, 0);
+    this.target = new THREE.Vector3(0, 0.12, 0);
     this.azimuth = 0;
-    this.elevation = 0.91;
+    this.elevation = 0.74;
     this.zoomLevel = 1;
     this.sensitivity = 1;
     this.view = "angle";
@@ -43,6 +46,8 @@ export class SceneManager {
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.intersection = new THREE.Vector3();
     this.setupLights();
+    this.environment = new ClubEnvironment(this.scene);
+    this.floor = this.environment.floor;
     this.table = new TableRenderer(this.scene);
     this.ballRenderer = new BallRenderer(this.scene);
     this.buildCue();
@@ -52,9 +57,11 @@ export class SceneManager {
     this.resize();
   }
   setupLights() {
-    this.scene.add(new THREE.HemisphereLight("#ffffff", "#7e8d82", 1.3));
-    const key = new THREE.DirectionalLight("#fff5da", 2.3);
-    key.position.set(-2, 7, 3);
+    this.scene.background = new THREE.Color("#15231f");
+    this.scene.fog = new THREE.Fog("#15231f", 16, 34);
+    this.scene.add(new THREE.HemisphereLight("#f5e8d3", "#283b32", 0.85));
+    const key = new THREE.DirectionalLight("#fff0d4", 2.7);
+    key.position.set(-1.8, 6, 1.2);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     Object.assign(key.shadow.camera, {
@@ -70,19 +77,17 @@ export class SceneManager {
     key.shadow.radius = 3;
     this.scene.add(key);
     this.keyLight = key;
-    const fill = new THREE.DirectionalLight("#e7fcff", 0.7);
+    const fill = new THREE.DirectionalLight("#cbe7ee", 0.65);
     fill.position.set(4, 3, -4);
     this.scene.add(fill);
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(60, 60),
-      new THREE.MeshStandardMaterial({ color: "#e7eae1", roughness: 1 }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.1;
-    floor.receiveShadow = true;
-    this.scene.add(floor);
-    this.floor = floor;
-    this.scene.fog = new THREE.Fog("#e7eae1", 16, 35);
+    // A tiny, prefiltered studio environment adds soft lamp reflections to the balls.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const room = new RoomEnvironment();
+    this.reflections = pmrem.fromScene(room, 0.04);
+    this.scene.environment = this.reflections.texture;
+    this.scene.environmentIntensity = 0.38;
+    room.dispose();
+    pmrem.dispose();
   }
   buildCue() {
     this.cue = new THREE.Group();
@@ -206,17 +211,28 @@ export class SceneManager {
     this.guideGroup.add(this.hitRing);
   }
   setMode(pockets) {
+    this.dirty = true;
     this.table.setMode(pockets);
     this.ballRenderer.setMode(!pockets);
     this.pockets = pockets;
   }
   sync(balls, cueId, dt = 1 / 60) {
+    if (this.cueId !== cueId) this.dirty = true;
     this.balls = balls;
     this.cueId = cueId;
-    this.ballRenderer.sync(balls, cueId, Math.min(dt, 0.1));
+    if (this.ballRenderer.sync(balls, cueId, Math.min(dt, 0.1)))
+      this.dirty = true;
     this.updateAim();
   }
   setAim(angle, power, spin = {}, show = true) {
+    if (
+      this.angle !== angle ||
+      this.power !== power ||
+      this.showAim !== show ||
+      this.spin?.x !== spin.x ||
+      this.spin?.y !== spin.y
+    )
+      this.dirty = true;
     this.angle = angle;
     this.power = power;
     this.spin = spin;
@@ -343,6 +359,7 @@ export class SceneManager {
       dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
     if (this.shooting > 0 && !this.showAim && this.shootOrigin) {
+      this.dirty = true;
       this.shooting -= dt;
       const progress = 1 - Math.max(0, this.shooting) / 0.22;
       const offset =
@@ -357,7 +374,11 @@ export class SceneManager {
       this.cue.rotation.y = -this.angle;
       this.cue.visible = this.shooting > 0;
     }
-    this.renderer.render(this.scene, this.camera);
+    // The physics clock keeps running; an idle table does not need more GPU frames.
+    if (this.dirty) {
+      this.renderer.render(this.scene, this.camera);
+      this.dirty = false;
+    }
   }
   screenToTable(clientX, clientY) {
     const rect = this.canvas.getBoundingClientRect();
@@ -383,6 +404,7 @@ export class SceneManager {
     this.updateCamera();
   }
   updateCamera() {
+    this.dirty = true;
     const aspect = this.camera.aspect,
       tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const width =
@@ -393,12 +415,13 @@ export class SceneManager {
       6.55 * Math.abs(Math.sin(this.azimuth));
     const elevation =
       this.view === "top" ? Math.PI / 2 - 0.001 : this.elevation;
+    const framing = this.view === "top" ? 1.18 : aspect < 1.3 ? 1.24 : 1.4;
     const distance =
       Math.max(
         width / (2 * tan * aspect),
         (depth * Math.sin(elevation) + 0.5) / (2 * tan),
       ) *
-      1.18 *
+      framing *
       this.zoomLevel;
     this.camera.position.set(
       Math.sin(this.azimuth) * Math.cos(elevation) * distance,
@@ -408,16 +431,17 @@ export class SceneManager {
     this.camera.position.add(this.target);
     this.camera.lookAt(this.target);
     this.camera.updateMatrixWorld();
+    this.environment.setCamera(this.camera, this.view);
   }
   setView(view) {
     this.view = view === "top" ? "top" : "angle";
     this.azimuth = 0;
     this.zoomLevel = 1;
-    this.target.set(0, -0.04, 0);
+    this.target.set(0, view === "top" ? -0.04 : 0.12, 0);
     this.updateCamera();
   }
   resetCamera() {
-    this.elevation = 0.91;
+    this.elevation = 0.74;
     this.setView("angle");
   }
   pan(right, forward) {
@@ -459,12 +483,14 @@ export class SceneManager {
     this.updateCamera();
   }
   setSettings(settings = {}) {
+    this.dirty = true;
     if (settings.tableColor) this.table.setColor(settings.tableColor);
     if (settings.ballStyle) this.ballRenderer.setStyle(settings.ballStyle);
     if (settings.sensitivity !== undefined)
       this.sensitivity = Number(settings.sensitivity);
     if (settings.aimGuide !== undefined) this.aimGuide = settings.aimGuide;
-    if (settings.quality) {
+    if (settings.quality && settings.quality !== this.quality) {
+      this.quality = settings.quality;
       const low = settings.quality === "low",
         high = settings.quality === "high";
       this.renderer.setPixelRatio(
@@ -475,6 +501,7 @@ export class SceneManager {
       this.keyLight.shadow.mapSize.set(high ? 2048 : 1024, high ? 2048 : 1024);
       this.keyLight.shadow.map?.dispose();
       this.keyLight.shadow.map = null;
+      this.environment.setQuality(settings.quality);
       this.scene.traverse((o) => {
         if (o.material)
           for (const mat of Array.isArray(o.material)
@@ -490,6 +517,9 @@ export class SceneManager {
     this.resizeObserver.disconnect();
     this.table.dispose();
     this.ballRenderer.dispose();
+    this.environment.dispose();
+    this.reflections.dispose();
+    this.keyLight.shadow.dispose();
     const gs = new Set(),
       ms = new Set(),
       ts = new Set();

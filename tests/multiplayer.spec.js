@@ -5,6 +5,7 @@ async function browserSeat(browser, name, path = "/") {
       viewport: { width: 1100, height: 900 },
     }),
     page = await context.newPage();
+  page.setDefaultTimeout(15000);
   await page.addInitScript(() =>
     localStorage.setItem("velvet-settings", JSON.stringify({ quality: "low" })),
   );
@@ -119,14 +120,22 @@ test("two browsers play the same match, several spectators watch, reconnect and 
     await expect(watcher.page.locator("#player-cards")).toContainText(
       "Hiệp Nguyễn",
     );
+    // Record the transient shot state before clicking: a slow renderer may finish
+    // processing another browser after this real-time shot has already settled.
+    await watcher.page.evaluate(() => {
+      window.__spectatorSawMotion = false;
+      window.__game.online.socket.addEventListener("message", (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "snapshot" && data.state === "SHOT_IN_PROGRESS")
+          window.__spectatorSawMotion = true;
+      });
+    });
     await host.page.locator("#shoot").click();
     for (const client of [guest, watcher, watcher2])
       await client.page.waitForFunction(
         () => window.__game.online?.info?.shots === 1,
       );
-    await watcher.page.waitForFunction(
-      () => window.__game.online?.info?.state === "SHOT_IN_PROGRESS",
-    );
+    await watcher.page.waitForFunction(() => window.__spectatorSawMotion);
     await host.page.waitForFunction(
       () =>
         window.__game.online?.info?.shots === 1 &&

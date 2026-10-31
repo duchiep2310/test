@@ -81,18 +81,22 @@ export class BallRenderer {
     return entry;
   }
   sync(balls, cueId, dt) {
+    let changed = false;
     const ids = new Set(balls.map((b) => b.id));
     for (const [id, entry] of this.meshes)
       if (!ids.has(id)) {
         this.remove(entry);
         this.meshes.delete(id);
+        changed = true;
       }
     for (const ball of balls) {
+      if (!this.meshes.has(ball.id)) changed = true;
       const entry = this.meshes.get(ball.id) || this.create(ball);
       const mesh = entry.mesh;
       const dx = ball.x - entry.lastX,
         dz = ball.z - entry.lastZ,
         dist = Math.hypot(dx, dz);
+      if (dist > 0 || entry.active !== (ball.active !== false)) changed = true;
       if (dist > 0.000001 && dist < 0.5) {
         this.axis.set(dz, 0, -dx).normalize();
         mesh.rotateOnWorldAxis(this.axis, dist / (ball.radius || TABLE.radius));
@@ -100,6 +104,7 @@ export class BallRenderer {
       entry.lastX = ball.x;
       entry.lastZ = ball.z;
       if (ball.active === false) {
+        if (entry.sink < 1) changed = true;
         entry.sink = Math.min(1, entry.sink + dt * 2.5);
         mesh.position.set(
           ball.x,
@@ -126,6 +131,7 @@ export class BallRenderer {
       this.cueHalo.position.x = cue.x;
       this.cueHalo.position.z = cue.z;
     }
+    return changed;
   }
   setMode(carom) {
     if (this.carom === carom) return;

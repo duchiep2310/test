@@ -1,87 +1,89 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { TABLE, POCKETS } from "../core/Constants.js";
+import {
+  canvasTexture,
+  clothTexture,
+  walnutTexture,
+  disposeGroup,
+} from "./ClubMaterials.js";
 
-const wood = "#302c28";
-function box(w, h, d, material, x = 0, y = 0, z = 0) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+function box(w, h, d, material, x = 0, y = 0, z = 0, rounded = false) {
+  const mesh = new THREE.Mesh(
+    rounded
+      ? new RoundedBoxGeometry(w, h, d, 2, Math.min(h / 3, 0.055))
+      : new THREE.BoxGeometry(w, h, d),
+    material,
+  );
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
 }
-function feltTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, 128, 128);
-  let seed = 17;
-  for (let i = 0; i < 5000; i++) {
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    const x = seed % 128;
-    seed = (seed * 1664525 + 1013904223) >>> 0;
-    const y = seed % 128;
-    ctx.fillStyle = i % 2 ? "rgba(0,0,0,.04)" : "rgba(255,255,255,.04)";
-    ctx.fillRect(x, y, 1, 1);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(14, 7);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
+
+/** The playing plane and cushion noses match TABLE exactly; decoration stays outside it. */
 export class TableRenderer {
   constructor(scene) {
     this.scene = scene;
     this.group = new THREE.Group();
+    this.group.name = "Walnut tournament table";
     scene.add(this.group);
+    const weave = clothTexture(),
+      grain = walnutTexture();
     this.cloth = new THREE.MeshStandardMaterial({
-      color: "#087d74",
-      roughness: 0.93,
-      map: feltTexture(),
+      color: "#087f75",
+      map: weave,
+      bumpMap: weave,
+      bumpScale: 0.0015,
+      roughness: 0.94,
     });
     this.cushionMaterial = new THREE.MeshStandardMaterial({
       color: "#09695f",
-      roughness: 0.84,
+      map: weave,
+      roughness: 0.88,
     });
     this.woodMaterial = new THREE.MeshStandardMaterial({
-      color: wood,
-      roughness: 0.36,
-      metalness: 0.12,
+      color: "#b69979",
+      map: grain,
+      roughness: 0.28,
+      metalness: 0.08,
+    });
+    this.apronMaterial = new THREE.MeshStandardMaterial({
+      color: "#785943",
+      map: grain,
+      roughness: 0.43,
     });
     this.brass = new THREE.MeshStandardMaterial({
-      color: "#b7a071",
-      roughness: 0.4,
-      metalness: 0.7,
+      color: "#c4a775",
+      roughness: 0.28,
+      metalness: 0.75,
     });
     this.dark = new THREE.MeshStandardMaterial({
-      color: "#111919",
-      roughness: 0.92,
+      color: "#15241e",
+      roughness: 0.54,
+    });
+    this.leather = new THREE.MeshStandardMaterial({
+      color: "#231c16",
+      roughness: 0.86,
     });
     this.build();
     this.setMode(true);
   }
   build() {
     const frame = this.group;
-    const base = box(6.3, 0.25, 3.5, this.woodMaterial, 0, -0.145, 0);
-    frame.add(base);
-    const apron = box(
-      6.07,
-      0.22,
-      3.27,
-      new THREE.MeshStandardMaterial({ color: "#1d2422", roughness: 0.55 }),
-      0,
-      -0.36,
-      0,
-    );
-    frame.add(apron);
-    // Thin brass seam, intentionally restrained against the dark walnut surround.
-    const seam = new THREE.MeshStandardMaterial({
-      color: "#8c7953",
-      metalness: 0.7,
-      roughness: 0.45,
-    });
-    frame.add(box(6.31, 0.018, 3.51, seam, 0, -0.255, 0));
+    frame.add(box(6.46, 0.22, 3.66, this.woodMaterial, 0, -0.135, 0, true));
+    frame.add(box(6.32, 0.028, 3.52, this.brass, 0, -0.258, 0, true));
+    frame.add(box(6.2, 0.31, 3.42, this.apronMaterial, 0, -0.41, 0, true));
+    frame.add(box(6.23, 0.042, 3.45, this.dark, 0, -0.58, 0, true));
+    // Recessed apron panels with a fine brass reveal.
+    for (const side of [-1, 1]) {
+      for (const x of [-1.65, 1.65]) {
+        frame.add(box(2.35, 0.18, 0.017, this.dark, x, -0.405, side * 1.717));
+        frame.add(box(2.36, 0.009, 0.019, this.brass, x, -0.5, side * 1.72));
+      }
+      frame.add(box(0.017, 0.18, 2.5, this.dark, side * 3.11, -0.405, 0));
+      frame.add(box(0.019, 0.009, 2.51, this.brass, side * 3.112, -0.5, 0));
+    }
     const surface = new THREE.Mesh(
       new THREE.PlaneGeometry(TABLE.width, TABLE.height),
       this.cloth,
@@ -90,46 +92,54 @@ export class TableRenderer {
     surface.receiveShadow = true;
     surface.position.y = 0.003;
     frame.add(surface);
-    for (const x of [-2.25, 2.25])
-      for (const z of [-1.05, 1.05]) {
-        const leg = box(0.23, 0.75, 0.23, this.woodMaterial, x, -0.7, z);
+    for (const x of [-2.3, 2.3])
+      for (const z of [-1.1, 1.1]) {
+        frame.add(box(0.4, 0.13, 0.4, this.dark, x, -0.61, z, true));
+        const leg = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.23, 0.16, 0.43, 4),
+          this.apronMaterial,
+        );
+        leg.rotation.y = Math.PI / 4;
+        leg.position.set(x, -0.865, z);
+        leg.castShadow = true;
         frame.add(leg);
-        frame.add(box(0.24, 0.035, 0.24, this.brass, x, -1.06, z));
+        frame.add(box(0.28, 0.055, 0.28, this.brass, x, -1.062, z, true));
       }
-    // Rail diamonds are inlaid squares; no labels obstruct the playing surface.
-    const diamondGeo = new THREE.OctahedronGeometry(0.027, 0);
+    frame.add(box(4.7, 0.12, 0.14, this.apronMaterial, 0, -0.88, 0, true));
+    for (const x of [-2.3, 2.3])
+      frame.add(box(0.15, 0.12, 2.25, this.apronMaterial, x, -0.88, 0, true));
+    const diamondGeo = new THREE.OctahedronGeometry(0.033, 0);
     for (const side of [-1, 1]) {
       for (const x of [-2.1, -1.4, -0.7, 0.7, 1.4, 2.1]) {
         const mark = new THREE.Mesh(diamondGeo, this.brass);
-        mark.scale.y = 0.18;
+        mark.scale.y = 0.13;
         mark.rotation.y = Math.PI / 4;
-        mark.position.set(x, 0.005, side * 1.58);
+        mark.position.set(x, 0.089, side * 1.655);
         frame.add(mark);
       }
       for (const z of [-0.7, 0, 0.7]) {
         const mark = new THREE.Mesh(diamondGeo, this.brass);
-        mark.scale.y = 0.18;
+        mark.scale.y = 0.13;
         mark.rotation.y = Math.PI / 4;
-        mark.position.set(side * 2.98, 0.005, z);
+        mark.position.set(side * 3.065, 0.089, z);
         frame.add(mark);
       }
     }
     const spotMat = new THREE.MeshBasicMaterial({
-      color: "#c0ded1",
+      color: "#d3e8ce",
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.38,
       depthWrite: false,
     });
     for (const x of [-1.4, 1.4]) {
       const spot = new THREE.Mesh(
-        new THREE.RingGeometry(0.014, 0.021, 20),
+        new THREE.RingGeometry(0.012, 0.02, 20),
         spotMat,
       );
       spot.rotation.x = -Math.PI / 2;
       spot.position.set(x, 0.007, 0);
       frame.add(spot);
     }
-    // Head-string, drawn with a whisper of opacity.
     const lineGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-1.4, 0.007, -1.37),
       new THREE.Vector3(-1.4, 0.007, 1.37),
@@ -138,56 +148,214 @@ export class TableRenderer {
       new THREE.Line(
         lineGeo,
         new THREE.LineBasicMaterial({
-          color: "#b3d3c8",
+          color: "#d1e1c9",
           transparent: true,
-          opacity: 0.07,
+          opacity: 0.09,
         }),
       ),
     );
+    this.buildBadge();
     this.rails = new THREE.Group();
     frame.add(this.rails);
+    this.poolRails = this.buildRails(true);
+    this.caromRails = this.buildRails(false);
+    this.rails.add(this.poolRails, this.caromRails);
+    this.buildPockets();
+  }
+  buildBadge() {
+    const texture = canvasTexture(512, 128, (c, w, h) => {
+      c.fillStyle = "#aa8e58";
+      c.fillRect(0, 0, w, h);
+      c.strokeStyle = "#463a26";
+      c.lineWidth = 2;
+      c.strokeRect(7, 7, w - 14, h - 14);
+      c.fillStyle = "#2c3026";
+      c.font = "italic 59px Georgia";
+      c.textAlign = "center";
+      c.fillText("velvet", w / 2, 75);
+      c.font = "11px Georgia";
+      c.fillText("T O U R N A M E N T   S E R I E S", w / 2, 102);
+    });
+    const badge = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.58, 0.145),
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        metalness: 0.35,
+        roughness: 0.4,
+      }),
+    );
+    badge.position.set(0, -0.405, 1.724);
+    this.group.add(badge);
+  }
+  cushion(parent, points) {
+    const shape = new THREE.Shape();
+    points.forEach(([x, z], i) =>
+      i ? shape.lineTo(x, -z) : shape.moveTo(x, -z),
+    );
+    shape.closePath();
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.07,
+      bevelEnabled: true,
+      bevelSegments: 1,
+      steps: 1,
+      bevelSize: 0.012,
+      bevelThickness: 0.012,
+    });
+    const mesh = new THREE.Mesh(geometry, this.cushionMaterial);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = -0.008;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+  }
+  buildRails(pockets) {
+    const rails = new THREE.Group();
+    const spans = pockets
+      ? [
+          [-2.65, -0.16],
+          [0.16, 2.65],
+        ]
+      : [[-2.82, 2.82]];
+    for (const side of [-1, 1]) {
+      for (const [a, b] of spans) {
+        const jaw = pockets ? 0.065 : 0;
+        this.cushion(rails, [
+          [a + jaw, side * 1.4],
+          [b - jaw, side * 1.4],
+          [b, side * 1.535],
+          [a, side * 1.535],
+        ]);
+        rails.add(
+          box(
+            b - a + 0.06,
+            0.105,
+            0.25,
+            this.woodMaterial,
+            (a + b) / 2,
+            0.027,
+            side * 1.67,
+            true,
+          ),
+        );
+        rails.add(
+          box(
+            b - a - 0.07,
+            0.007,
+            0.008,
+            this.brass,
+            (a + b) / 2,
+            0.081,
+            side * 1.78,
+          ),
+        );
+      }
+      const length = pockets ? 1.21 : 1.4,
+        jaw = pockets ? 0.075 : 0;
+      this.cushion(rails, [
+        [side * 2.8, -length + jaw],
+        [side * 2.8, length - jaw],
+        [side * 2.935, length],
+        [side * 2.935, -length],
+      ]);
+      rails.add(
+        box(
+          0.25,
+          0.105,
+          pockets ? 2.65 : 2.85,
+          this.woodMaterial,
+          side * 3.07,
+          0.027,
+          0,
+          true,
+        ),
+      );
+      rails.add(
+        box(
+          0.008,
+          0.007,
+          pockets ? 2.57 : 2.77,
+          this.brass,
+          side * 3.18,
+          0.081,
+          0,
+        ),
+      );
+      for (const x of [-2.98, 2.98])
+        rails.add(
+          box(
+            0.45,
+            0.105,
+            0.34,
+            this.woodMaterial,
+            x,
+            0.027,
+            side * 1.63,
+            true,
+          ),
+        );
+      if (pockets)
+        rails.add(
+          box(0.27, 0.105, 0.22, this.leather, 0, 0.027, side * 1.69, true),
+        );
+    }
+    return rails;
+  }
+  buildPockets() {
     this.pocketGroup = new THREE.Group();
-    frame.add(this.pocketGroup);
-    const holeGeo = new THREE.CircleGeometry(TABLE.pocketRadius * 1.12, 36);
-    const holeMat = new THREE.MeshBasicMaterial({ color: "#081312" });
+    this.group.add(this.pocketGroup);
+    const holeGeo = new THREE.CircleGeometry(TABLE.pocketRadius * 1.13, 40);
+    const holeMat = new THREE.MeshBasicMaterial({ color: "#030908" });
     const ringGeo = new THREE.TorusGeometry(
-      TABLE.pocketRadius * 1.14,
-      0.018,
+      TABLE.pocketRadius * 1.16,
+      0.024,
       8,
       40,
     );
+    const basketGeo = new THREE.CylinderGeometry(0.15, 0.11, 0.28, 20);
     POCKETS.forEach((p, i) => {
       const hole = new THREE.Mesh(holeGeo, holeMat);
       hole.rotation.x = -Math.PI / 2;
-      hole.position.set(p.x, 0.011, p.z);
+      hole.position.set(p.x, 0.082, p.z);
       this.pocketGroup.add(hole);
-      const ring = new THREE.Mesh(
-        ringGeo,
-        new THREE.MeshStandardMaterial({ color: "#171e1a", roughness: 0.8 }),
-      );
+      const ring = new THREE.Mesh(ringGeo, this.leather);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(p.x, 0.007, p.z);
+      ring.position.set(p.x, 0.067, p.z);
       this.pocketGroup.add(ring);
-      const label = document.createElement("canvas");
-      label.width = label.height = 64;
-      const c = label.getContext("2d");
-      c.fillStyle = "#b7a071";
-      c.font = "500 34px sans-serif";
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillText(String(i + 1), 32, 32);
-      const spriteMaterial = new THREE.SpriteMaterial({
-        map: new THREE.CanvasTexture(label),
-        transparent: true,
-        opacity: 0.7,
-        depthTest: false,
-      });
-      const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.scale.set(0.13, 0.13, 0.13);
-      sprite.position.set(
-        p.x + (p.x === 0 ? 0 : Math.sign(p.x) * 0.11),
+      const basket = new THREE.Mesh(basketGeo, this.leather);
+      basket.position.set(p.x, -0.31, p.z);
+      this.pocketGroup.add(basket);
+      const plate = box(
+        0.29,
+        0.018,
         0.14,
-        p.z + Math.sign(p.z) * 0.19,
+        this.brass,
+        p.x + (p.x ? Math.sign(p.x) * 0.18 : 0),
+        0.084,
+        p.z + Math.sign(p.z) * 0.26,
+        true,
+      );
+      if (p.x) plate.rotation.y = (-Math.sign(p.x * p.z) * Math.PI) / 4;
+      this.pocketGroup.add(plate);
+      const label = canvasTexture(64, 64, (c) => {
+        c.fillStyle = "#e0c694";
+        c.font = "500 30px Georgia";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText(String(i + 1), 32, 32);
+      });
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: label,
+          transparent: true,
+          opacity: 0.82,
+          depthTest: false,
+        }),
+      );
+      sprite.scale.setScalar(0.12);
+      sprite.position.set(
+        p.x + (p.x ? Math.sign(p.x) * 0.09 : 0),
+        0.19,
+        p.z + Math.sign(p.z) * 0.27,
       );
       this.pocketGroup.add(sprite);
     });
@@ -195,62 +363,14 @@ export class TableRenderer {
   setMode(pockets) {
     this.pockets = pockets;
     this.pocketGroup.visible = pockets;
-    while (this.rails.children.length) {
-      const child = this.rails.children[0];
-      this.rails.remove(child);
-      child.geometry.dispose();
-    }
-    const segments = pockets
-      ? [
-          [-2.59, -0.19],
-          [0.19, 2.59],
-        ]
-      : [[-2.8, 2.8]];
-    for (const side of [-1, 1]) {
-      for (const [a, b] of segments)
-        this.rails.add(
-          box(
-            b - a,
-            0.105,
-            0.115,
-            this.cushionMaterial,
-            (a + b) / 2,
-            0.02,
-            side * 1.455,
-          ),
-        );
-      this.rails.add(
-        box(
-          0.115,
-          0.105,
-          pockets ? 2.38 : 2.8,
-          this.cushionMaterial,
-          side * 2.855,
-          0.02,
-          0,
-        ),
-      );
-    }
+    this.poolRails.visible = pockets;
+    this.caromRails.visible = !pockets;
   }
   setColor(color) {
     this.cloth.color.set(color);
-    this.cushionMaterial.color.set(color).multiplyScalar(0.75);
+    this.cushionMaterial.color.set(color).multiplyScalar(0.78);
   }
   dispose() {
-    const geometries = new Set(),
-      materials = new Set(),
-      textures = new Set();
-    this.group.traverse((o) => {
-      if (o.geometry) geometries.add(o.geometry);
-      if (o.material)
-        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-          materials.add(m);
-          if (m.map) textures.add(m.map);
-        }
-    });
-    geometries.forEach((g) => g.dispose());
-    materials.forEach((m) => m.dispose());
-    textures.forEach((t) => t.dispose());
-    this.scene.remove(this.group);
+    disposeGroup(this.group);
   }
 }
