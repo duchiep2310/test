@@ -507,3 +507,91 @@ test("ball-in-hand can be repositioned repeatedly before shooting, never by oppo
     /Đặt bi/,
   );
 });
+
+test("invalid jump values cannot consume a shot or change aim; omitted jump remains a flat legacy shot", () => {
+  const { hub, a, room } = openRoom({}, "nine");
+  const revision = room.match.revision;
+  for (const jump of [-0.01, 1.01, NaN, Infinity, null, "0.5", true, {}, []]) {
+    for (const type of ["aim", "shoot"])
+      assert.throws(() =>
+        hub.handle(a, command(room, type, { ...shot, jump })),
+      );
+    assert.equal(room.match.shots, 0);
+    assert.equal(room.match.revision, revision);
+    assert.equal(room.match.jump, 0);
+    assert.equal(room.match.physics.isMoving(), false);
+  }
+  hub.handle(a, command(room, "aim", { ...shot, jump: 0.8 }));
+  assert.equal(room.snapshot().aim.jump, 0.8);
+  // Old clients send no jump field, even after a new client has prepared a jump.
+  hub.handle(a, command(room, "shoot", shot));
+  assert.equal(room.match.shots, 1);
+  assert.equal(room.match.jump, 0);
+  assert.equal(room.match.cue.height, 0);
+  assert.equal(room.match.cue.vy, 0);
+  assert.equal(room.match.physics.isMoving(), true);
+});
+
+test("authoritative jump height syncs to both players and viewers, remains in motion vertically and resets after landing", () => {
+  const { hub, a, b, room } = openRoom({}, "nine"),
+    viewer = peer();
+  hub.handle(viewer, { type: "join", roomId: room.id, spectate: true });
+  room.match.mode.isBreak = false;
+  room.match.state = "PLAYER_TURN";
+  room.match.physics.setBalls([
+    { id: 0, x: -1.4, z: 0 },
+    { id: 1, x: 1.1, z: 0.5 },
+    { id: 9, x: 1.8, z: -0.5 },
+  ]);
+  hub.handle(a, command(room, "shoot", { ...shot, power: 0.5, jump: 1 }));
+  for (let i = 0; i < 20; i++) hub.tick(1 / 240);
+  room.broadcast();
+  const snapshots = [a, b, viewer].map((p) =>
+    p.messages.filter((m) => m.type === "snapshot").at(-1),
+  );
+  assert.deepEqual(snapshots[0], snapshots[1]);
+  assert.deepEqual(snapshots[0], snapshots[2]);
+  assert.equal(snapshots[0].aim.jump, 1);
+  const cue = snapshots[0].balls.find((ball) => ball.id === 0);
+  assert.ok(cue.height > 0.1, "server snapshot must show actual vertical lift");
+  assert.ok(cue.vy > 0, "cue must still be ascending in the early snapshot");
+  assert.ok(
+    snapshots[0].balls.every((ball) => Number.isFinite(ball.height + ball.vy)),
+  );
+
+  // Horizontal speed alone cannot decide when an airborne shot has ended.
+  room.match.cue.vx = room.match.cue.vz = 0;
+  hub.tick(1 / 240);
+  assert.equal(room.match.physics.isMoving(), true);
+  assert.equal(room.match.state, "SHOT_IN_PROGRESS");
+  assert.equal(room.match.canShoot, false);
+  for (let i = 0; i < 7200; i++) hub.tick(1 / 240);
+  assert.equal(room.match.physics.isMoving(), false);
+  assert.ok(["PLAYER_TURN", "BALL_IN_HAND"].includes(room.match.state));
+  assert.equal(room.snapshot().aim.jump, 0);
+  assert.ok(
+    room.match.physics.balls.every(
+      (ball) => ball.height === 0 && ball.vy === 0,
+    ),
+  );
+});
+
+test("jump preparation and execution remain exclusive to the active player", () => {
+  const { hub, a, b, room } = openRoom({}, "nine"),
+    viewer = peer();
+  hub.handle(viewer, { type: "join", roomId: room.id, spectate: true });
+  hub.handle(a, command(room, "aim", { ...shot, jump: 0.8 }));
+  for (const type of ["aim", "shoot"]) {
+    assert.throws(
+      () => hub.handle(b, command(room, type, { ...shot, jump: 0 })),
+      /lượt/,
+    );
+    assert.throws(
+      () => hub.handle(viewer, command(room, type, { ...shot, jump: 1 })),
+      /Khán giả/,
+    );
+  }
+  assert.equal(room.match.shots, 0);
+  assert.equal(room.snapshot().aim.jump, 0.8);
+  assert.equal(room.match.physics.isMoving(), false);
+});

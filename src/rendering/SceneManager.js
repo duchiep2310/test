@@ -37,6 +37,7 @@ export class SceneManager {
     this.showAim = true;
     this.power = 0.4;
     this.angle = 0;
+    this.jump = 0;
     this.balls = [];
     this.cueId = 0;
     this.lastTime = performance.now();
@@ -51,6 +52,7 @@ export class SceneManager {
     this.table = new TableRenderer(this.scene);
     this.ballRenderer = new BallRenderer(this.scene);
     this.buildCue();
+    this.cueLocalTip = new THREE.Vector3();
     this.buildGuide();
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -224,11 +226,13 @@ export class SceneManager {
       this.dirty = true;
     this.updateAim();
   }
-  setAim(angle, power, spin = {}, show = true) {
+  setAim(angle, power, spin = {}, show = true, jump = 0) {
+    jump = Math.max(0, Math.min(1, Number(jump) || 0));
     if (
       this.angle !== angle ||
       this.power !== power ||
       this.showAim !== show ||
+      this.jump !== jump ||
       this.spin?.x !== spin.x ||
       this.spin?.y !== spin.y
     )
@@ -237,11 +241,17 @@ export class SceneManager {
     this.power = power;
     this.spin = spin;
     if (this.showAim && !show) {
+      this.shootJump = this.jump;
       this.shooting = 0.22;
       this.shootOrigin = this.balls.find((b) => b.id === this.cueId);
       if (this.shootOrigin)
-        this.shootOrigin = { x: this.shootOrigin.x, z: this.shootOrigin.z };
+        this.shootOrigin = {
+          x: this.shootOrigin.x,
+          z: this.shootOrigin.z,
+          height: this.shootOrigin.height || 0,
+        };
     }
+    this.jump = jump;
     this.showAim = show;
     this.updateAim();
   }
@@ -249,8 +259,12 @@ export class SceneManager {
     const cue = this.balls.find(
       (b) => b.id === this.cueId && b.active !== false,
     );
-    this.guideGroup.visible = Boolean(cue && this.showAim && this.aimGuide);
-    this.cueGapLine.visible = Boolean(cue && this.showAim && !this.aimGuide);
+    this.guideGroup.visible = Boolean(
+      cue && this.showAim && this.aimGuide && !this.jump,
+    );
+    this.cueGapLine.visible = Boolean(
+      cue && this.showAim && (!this.aimGuide || this.jump),
+    );
     this.cue.visible = Boolean((cue && this.showAim) || this.shooting > 0);
     this.ballRenderer.cueHalo.visible = Boolean(cue && this.showAim);
     if (!cue) return;
@@ -258,8 +272,7 @@ export class SceneManager {
       dz = Math.sin(this.angle),
       pull = 0.08 + this.power * 0.34;
     if (this.showAim) {
-      this.cue.position.set(cue.x - dx * pull, 0.014, cue.z - dz * pull);
-      this.cue.rotation.y = -this.angle;
+      this.positionCue(cue, pull, this.jump);
     }
     if (this.cueGapLine.visible) {
       // Cylinder local -Y is the tip face nearest the cue ball.
@@ -267,13 +280,14 @@ export class SceneManager {
         this.cueGapStart.set(0, -this.cueTip.geometry.parameters.height / 2, 0),
       );
       const radius = cue.radius || TABLE.radius;
+      const elevation = this.jump ? 0.18 + this.jump * 0.65 : 0;
       this.cueGapPositions.set([
         this.cueGapStart.x,
         this.cueGapStart.y,
         this.cueGapStart.z,
-        cue.x - dx * radius,
-        radius + 0.008,
-        cue.z - dz * radius,
+        cue.x - dx * Math.cos(elevation) * radius,
+        radius + 0.008 + (cue.height || 0) + Math.sin(elevation) * radius,
+        cue.z - dz * Math.cos(elevation) * radius,
       ]);
       this.cueGapGeometry.attributes.position.needsUpdate = true;
       this.cueGapLine.computeLineDistances();
@@ -354,6 +368,41 @@ export class SceneManager {
     this.objectGeometry.attributes.position.needsUpdate = true;
     this.objectLine.computeLineDistances();
   }
+  positionCue(cue, pull, jump = 0) {
+    const dx = Math.cos(this.angle),
+      dz = Math.sin(this.angle);
+    const elevation = jump ? 0.18 + jump * 0.65 : 0;
+    this.cue.rotation.set(0, -this.angle, -elevation);
+    if (!jump) {
+      this.cue.position.set(
+        cue.x - dx * pull,
+        0.014 + (cue.height || 0),
+        cue.z - dz * pull,
+      );
+      return;
+    }
+    // Anchor the actual tip along the raised shaft's axis, behind the impact point.
+    const distance =
+      pull -
+      this.cueTip.position.x -
+      this.cueTip.geometry.parameters.height / 2;
+    this.cueLocalTip
+      .set(
+        this.cueTip.position.x + this.cueTip.geometry.parameters.height / 2,
+        this.cueTip.position.y,
+        0,
+      )
+      .applyEuler(this.cue.rotation);
+    this.cue.position.set(
+      cue.x - dx * Math.cos(elevation) * distance - this.cueLocalTip.x,
+      (cue.radius || TABLE.radius) +
+        0.008 +
+        (cue.height || 0) +
+        Math.sin(elevation) * distance -
+        this.cueLocalTip.y,
+      cue.z - dz * Math.cos(elevation) * distance - this.cueLocalTip.z,
+    );
+  }
   render() {
     const now = performance.now(),
       dt = Math.min((now - this.lastTime) / 1000, 0.1);
@@ -366,12 +415,7 @@ export class SceneManager {
         progress < 0.3
           ? 0.3 * (1 - progress / 0.3)
           : 0.25 * ((progress - 0.3) / 0.7);
-      this.cue.position.set(
-        this.shootOrigin.x - Math.cos(this.angle) * offset,
-        0.014,
-        this.shootOrigin.z - Math.sin(this.angle) * offset,
-      );
-      this.cue.rotation.y = -this.angle;
+      this.positionCue(this.shootOrigin, offset, this.shootJump);
       this.cue.visible = this.shooting > 0;
     }
     // The physics clock keeps running; an idle table does not need more GPU frames.

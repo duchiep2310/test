@@ -14,6 +14,7 @@ export class Game {
     this.state = S.MENU;
     this.angle = 0;
     this.power = 0.52;
+    this.jump = 0;
     this.spin = { x: 0, y: 0 };
     this.calledPocket = null;
     this.calledBall = null;
@@ -98,6 +99,7 @@ export class Game {
     this.aiDelay = 1.1;
     this.angle = 0;
     this.power = this.mode.pockets ? 0.96 : 0.52;
+    this.jump = 0;
     this.spin = { x: 0, y: 0 };
     this.finishedAt = null;
     this.calledPocket = null;
@@ -145,6 +147,18 @@ export class Game {
     this.notify();
     return true;
   }
+  setJump(value) {
+    if (
+      this.lobbyOpen ||
+      !this.canShoot ||
+      this.isAI ||
+      !Number.isFinite(value)
+    )
+      return false;
+    this.jump = Math.max(0, Math.min(1, value));
+    this.notify();
+    return true;
+  }
   onPhysicsEvent(event) {
     if (![S.SHOT_IN_PROGRESS, S.BALLS_SETTLING].includes(this.state)) return;
     this.shotEvents.push({ ...event });
@@ -188,6 +202,7 @@ export class Game {
       this.angle,
       Math.max(0.04, this.power),
       this.spin,
+      this.jump,
     );
     if (!accepted) {
       this.state = previousState;
@@ -233,6 +248,7 @@ export class Game {
             Object.assign(this, {
               angle: shot.angle,
               power: shot.power,
+              jump: 0,
               spin: shot.spin || { x: 0, y: 0 },
               calledBall: shot.calledBall,
               calledPocket: shot.calledPocket,
@@ -262,6 +278,7 @@ export class Game {
     this.shotLog = this.shotLog.slice(0, 12);
     this.calledPocket = null;
     this.calledBall = null;
+    this.jump = 0;
     this.aiDelay = 1.25;
     if (this.mode.winner != null || result.winner != null) {
       this.state = S.GAME_OVER;
@@ -279,6 +296,7 @@ export class Game {
       const cue = this.cue;
       cue.active = false;
       cue.vx = cue.vz = 0;
+      cue.height = cue.vy = 0;
       this.state = S.BALL_IN_HAND;
     } else this.state = S.PLAYER_TURN;
     this.notify();
@@ -296,6 +314,7 @@ export class Game {
       b.x = p.x;
       b.z = p.z;
       b.vx = b.vz = 0;
+      b.height = b.vy = 0;
       b.spin = { x: 0, y: 0 };
       b.active = true;
     }
@@ -438,6 +457,7 @@ export class Game {
       this.power,
       this.spin,
       this.online ? this.online.showAim : this.canShoot && !this.isAI,
+      this.jump,
     );
     this.scene.render();
     this.hudTimer = (this.hudTimer || 0) + dt;

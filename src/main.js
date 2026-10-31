@@ -2,6 +2,7 @@ import "./styles/main.css";
 import { MatchControls } from "./ui/MatchControls.js";
 import { CueAngleControl } from "./ui/CueAngleControl.js";
 import { ShotCallDialog } from "./ui/ShotCallDialog.js";
+import { JumpControl } from "./ui/JumpControl.js";
 import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
@@ -64,6 +65,7 @@ let lobby = null;
 let matchControls = null;
 let cueAngleControl = null;
 let shotCallDialog = null;
+let jumpControl = null;
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -343,6 +345,7 @@ function update(g) {
   matchControls?.update();
   cueAngleControl?.update();
   shotCallDialog?.update();
+  jumpControl?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
@@ -362,6 +365,7 @@ try {
   matchControls = new MatchControls(game, lobby);
   cueAngleControl = new CueAngleControl(game);
   shotCallDialog = new ShotCallDialog(game);
+  jumpControl = new JumpControl(game);
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;

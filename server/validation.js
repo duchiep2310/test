@@ -5,6 +5,7 @@ export function nameOf(value) {
   return cleanName(value, "Khách");
 }
 export function shotOf(data) {
+  const jump = data.jump === undefined ? 0 : data.jump;
   const range = (v, min, max) =>
     typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
   if (
@@ -14,6 +15,7 @@ export function shotOf(data) {
     !range(data.spin?.y, -1, 1)
   )
     throw new Error("Lực đánh hoặc hướng ngắm không hợp lệ.");
+  if (!range(jump, 0, 1)) throw new Error("Mức nhảy không hợp lệ.");
   if (
     data.calledPocket != null &&
     (!Number.isInteger(data.calledPocket) ||
@@ -31,6 +33,7 @@ export function shotOf(data) {
   return {
     angle: data.angle,
     power: data.power,
+    jump,
     spin: { x: data.spin.x, y: data.spin.y },
     calledPocket: data.calledPocket ?? null,
     calledBall: data.calledBall ?? null,

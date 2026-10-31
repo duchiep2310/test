@@ -209,3 +209,129 @@ test("a full-power 16-ball break settles without overlap, escape, or invalid pos
     }
   }
 });
+
+test("a full jump clears an intervening ball while the same flat shot strikes it", () => {
+  for (const jump of [0, 1]) {
+    const events = [];
+    const engine = new PhysicsEngine({
+      pockets: false,
+      onEvent: (e) => events.push(e),
+    });
+    engine.setBalls([ball(0, -0.7, 0), ball(1, 0, 0)]);
+    assert.equal(engine.shoot(0, 0, 0.65, { x: 0, y: 0 }, jump), true);
+    advance(engine, 0.25);
+    const hits = events.filter((e) => e.type === "collision");
+    if (jump) {
+      assert.ok(engine.balls[0].x > 0.13);
+      assert.ok(engine.balls[0].height > 0.13);
+      assert.equal(hits.length, 0);
+      near(engine.balls[1].x, 0);
+    } else {
+      assert.ok(hits.length > 0);
+      assert.ok(engine.balls[1].vx > 1);
+      near(engine.balls[0].height, 0);
+    }
+  }
+});
+
+test("a low jump still collides with a close blocker through its actual sphere contact", () => {
+  const events = [];
+  const engine = new PhysicsEngine({
+    pockets: false,
+    onEvent: (e) => events.push(e),
+  });
+  engine.setBalls([ball(0, -0.25, 0), ball(1, 0, 0)]);
+  engine.shoot(0, 0, 0.65, { x: 0, y: 0 }, 0.2);
+  advance(engine, 0.05);
+  assert.ok(
+    events.some((e) => e.type === "collision" && e.a === 0 && e.b === 1),
+  );
+  assert.ok(engine.balls[1].vx > 0.5);
+  assert.ok(engine.balls[0].height >= 0);
+});
+
+test("vertical-only flight keeps the simulation awake and lands at exact rest", () => {
+  const events = [];
+  const engine = new PhysicsEngine({
+    pockets: false,
+    onEvent: (e) => events.push(e),
+  });
+  engine.setBalls([ball(0, 0, 0, 0, 0, { height: 0.4, vy: 0 })]);
+  assert.equal(engine.isMoving(), true);
+  assert.equal(engine.shoot(0, 0, 0.5), false);
+  advance(engine, 2);
+  assert.equal(engine.isMoving(), false);
+  near(engine.balls[0].height, 0);
+  near(engine.balls[0].vy, 0);
+  near(engine.balls[0].x, 0);
+  assert.ok(events.some((e) => e.type === "landing"));
+});
+
+test("a descending sphere hits a ball beneath it and settles without stacking or overlap", () => {
+  const events = [];
+  const engine = new PhysicsEngine({
+    pockets: false,
+    onEvent: (e) => events.push(e),
+  });
+  engine.setBalls([ball(0, 0, 0, 0, 0, { height: 0.25 }), ball(1, 0, 0)]);
+  advance(engine, 20);
+  assert.ok(events.some((e) => e.type === "collision"));
+  assert.equal(engine.isMoving(), false);
+  for (const b of engine.balls) {
+    assert.ok(Number.isFinite(b.x + b.z + b.vx + b.vz + b.height + b.vy));
+    near(b.height, 0);
+    near(b.vy, 0);
+  }
+  assert.ok(
+    Math.hypot(
+      engine.balls[0].x - engine.balls[1].x,
+      engine.balls[0].z - engine.balls[1].z,
+    ) >=
+      0.13 - 1e-6,
+  );
+});
+
+test("airborne balls pass over pocket capture zones but descending low balls are captured", () => {
+  const engine = new PhysicsEngine();
+  engine.setBalls([ball(0, 0, -1.3, 0, -2, { height: 0.25 })]);
+  advance(engine, 0.04);
+  assert.equal(engine.balls[0].active, true);
+  assert.ok(engine.balls[0].height > 0.2);
+  Object.assign(engine.balls[0], { x: 0, z: -1.28, height: 0.005, vy: -1 });
+  engine.step(1 / 240);
+  assert.equal(engine.balls[0].active, false);
+  assert.equal(engine.balls[0].pocket, 1);
+  near(engine.balls[0].height, 0);
+  near(engine.balls[0].vy, 0);
+});
+
+test("jumping balls remain inside the containing rails and eventually stop", () => {
+  const engine = new PhysicsEngine({ pockets: false });
+  engine.setBalls([ball(0, 2.6, 1.2)]);
+  engine.shoot(0, Math.PI / 4, 1, { x: 0, y: 0 }, 1);
+  let jumped = false;
+  for (let i = 0; i < 4800; i++) {
+    engine.step(1 / 240);
+    const b = engine.balls[0];
+    jumped ||= b.height > 0.13;
+    assert.ok(Math.abs(b.x) <= TABLE.halfWidth - b.radius + 1e-8);
+    assert.ok(Math.abs(b.z) <= TABLE.halfHeight - b.radius + 1e-8);
+    assert.ok(b.height >= 0 && Number.isFinite(b.height + b.vy));
+  }
+  assert.equal(jumped, true);
+  assert.equal(engine.isMoving(), false);
+});
+
+test("jump values validate, omitted jump remains flat, and placing a ball clears flight", () => {
+  const engine = new PhysicsEngine();
+  engine.setBalls([ball(0, 0, 0)]);
+  for (const jump of [-0.01, 1.01, NaN, Infinity])
+    assert.equal(engine.shoot(0, 0, 0.5, { x: 0, y: 0 }, jump), false);
+  assert.equal(engine.shoot(0, 0, 0.5), true);
+  near(engine.balls[0].height, 0);
+  near(engine.balls[0].vy, 0);
+  Object.assign(engine.balls[0], { active: false, height: 0.4, vy: 2 });
+  assert.equal(engine.placeBall(0, -1, 0), true);
+  near(engine.balls[0].height, 0);
+  near(engine.balls[0].vy, 0);
+});

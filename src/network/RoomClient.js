@@ -261,7 +261,10 @@ export class RoomClient {
     g.cushions = snapshot.cushions;
     g.message = snapshot.message;
     if (!ownsAim)
-      Object.assign(g, snapshot.aim, { spin: { ...snapshot.aim.spin } });
+      Object.assign(g, snapshot.aim, {
+        jump: snapshot.aim.jump ?? 0,
+        spin: { ...snapshot.aim.spin },
+      });
     this.frames.push({ at: performance.now(), balls: snapshot.balls });
     if (this.frames.length > 10) this.frames.shift();
     for (const e of snapshot.effects || [])
@@ -300,6 +303,7 @@ export class RoomClient {
     return {
       angle: g.angle,
       power: g.power,
+      jump: g.jump,
       spin: { ...g.spin },
       calledBall: g.calledBall,
       calledPocket: g.calledPocket,
@@ -394,6 +398,10 @@ export class RoomClient {
         ...ball,
         x: before.x + (ball.x - before.x) * alpha,
         z: before.z + (ball.z - before.z) * alpha,
+        height:
+          (before.height ?? 0) +
+          ((ball.height ?? 0) - (before.height ?? 0)) * alpha,
+        vy: (before.vy ?? 0) + ((ball.vy ?? 0) - (before.vy ?? 0)) * alpha,
       };
     });
   }

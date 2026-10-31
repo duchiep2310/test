@@ -20,6 +20,7 @@ export class Match {
     this.cushions = 0;
     this.angle = 0;
     this.power = this.mode.pockets ? 0.96 : 0.52;
+    this.jump = 0;
     this.spin = { x: 0, y: 0 };
     this.calledPocket = this.calledBall = null;
     this.settleTime = 0;
@@ -64,7 +65,16 @@ export class Match {
     Object.assign(this, shot);
     if (this.mode.id === "ten" && this.calledBall == null)
       this.calledBall = targets[0];
-    if (!this.physics.shoot(this.shotCue, this.angle, this.power, this.spin))
+    this.jump = shot.jump ?? 0;
+    if (
+      !this.physics.shoot(
+        this.shotCue,
+        this.angle,
+        this.power,
+        this.spin,
+        this.jump,
+      )
+    )
       return false;
     this.placementAllowed = false;
     this.effects.push({ type: "cue", strength: this.power });
@@ -97,6 +107,7 @@ export class Match {
     });
     for (const id of result.respot || []) this.respot(id);
     this.calledPocket = this.calledBall = null;
+    this.jump = 0;
     this.spin = { x: 0, y: 0 };
     this.message = result.message;
     if (this.mode.winner != null) {
@@ -106,6 +117,7 @@ export class Match {
       this.placementAllowed = true;
       this.cue.active = false;
       this.cue.vx = this.cue.vz = 0;
+      this.cue.height = this.cue.vy = 0;
       this.state = S.BALL_IN_HAND;
     } else this.state = S.PLAYER_TURN;
     this.revision++;
@@ -199,6 +211,7 @@ export class Match {
       aim: {
         angle: this.angle,
         power: this.power,
+        jump: this.jump,
         spin: { ...this.spin },
         calledPocket: this.calledPocket,
         calledBall: this.calledBall,
@@ -209,6 +222,8 @@ export class Match {
         z: b.z,
         vx: b.vx,
         vz: b.vz,
+        height: b.height,
+        vy: b.vy,
         radius: b.radius,
         mass: b.mass,
         active: b.active,

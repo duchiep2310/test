@@ -478,3 +478,184 @@ test("shared aim, aggregate scores, rematch and repeat cue placement sync across
     await app.close();
   }
 });
+
+test("jump strength and real airborne motion synchronize to players and spectators", async ({
+  browser,
+}) => {
+  test.setTimeout(90000);
+  const { createRoomServer } = await import("../server/index.js");
+  const app = createRoomServer();
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const url = "http://127.0.0.1:" + app.server.address().port,
+    contexts = [],
+    errors = [];
+  async function join(name) {
+    const context = await browser.newContext({
+      viewport: { width: 900, height: 750 },
+    });
+    contexts.push(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "velvet-settings",
+        JSON.stringify({ quality: "low" }),
+      ),
+    );
+    await page.goto(url);
+    await page.locator("#room-name").fill(name);
+    return page;
+  }
+  try {
+    const a = await join("An");
+    await a.locator("#room-mode").selectOption("nine");
+    await a.locator("#create-room").click();
+    await expect(a.locator("#online-room")).toBeVisible();
+    const id = await a.locator("#current-room-code").textContent();
+    const b = await join("Bình");
+    await b.locator("#room-code").fill(id);
+    await b.locator("[data-role=player]").click();
+    const viewer = await join("Khán giả");
+    await viewer.locator("#room-code").fill(id);
+    await viewer.locator("[data-role=spectator]").click();
+    const room = app.hub.rooms.get(id);
+    room.match.mode.isBreak = false;
+    room.match.physics.setBalls([
+      { id: 0, x: 0, z: 0 },
+      { id: 2, x: 0.6, z: 0 },
+      { id: 1, x: 1.55, z: 0 },
+      { id: 9, x: -1, z: 0.7 },
+    ]);
+    room.match.state = "PLAYER_TURN";
+    room.match.revision++;
+    room.broadcast();
+    for (const p of [a, b, viewer]) {
+      await p.waitForFunction(
+        () =>
+          window.__game.physics.balls.length === 4 &&
+          !window.__game.mode.isBreak,
+      );
+      await p.evaluate(() => {
+        window.__jumpPackets = [];
+        window.__maxRenderedJump = 0;
+        const g = window.__game,
+          renderer = g.scene.ballRenderer,
+          sync = renderer.sync;
+        renderer.sync = function (...args) {
+          const changed = sync.apply(this, args),
+            mesh = this.meshes.get(0)?.mesh;
+          if (mesh)
+            window.__maxRenderedJump = Math.max(
+              window.__maxRenderedJump,
+              mesh.position.y - 0.073,
+            );
+          return changed;
+        };
+        g.online.socket.addEventListener("message", (event) => {
+          const data = JSON.parse(event.data);
+          const ball =
+            data.type === "snapshot" && data.balls.find((b) => b.id === 0);
+          if (ball && ball.height > 0.01)
+            window.__jumpPackets.push([data.seq, ball.height, ball.vy]);
+        });
+      });
+    }
+    await a.locator("#jump-toggle").click();
+    await a.locator("#jump-level").fill("100");
+    await a.locator("#power").fill("50");
+    await a.locator("#cue-angle-range").fill("0");
+    for (const p of [b, viewer]) {
+      await expect(p.locator("#jump-toggle")).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      await expect(p.locator("#jump-value")).toHaveText("100%");
+      await expect(p.locator("#jump-toggle")).toBeDisabled();
+      expect(await p.evaluate(() => window.__game.setJump(0))).toBe(false);
+    }
+    // Hold this private fixture's clock during actual flight so three software
+    // rendered browser views can inspect the same brief jump without missing it.
+    const tick = app.hub.tick.bind(app.hub);
+    let holdFlight = true,
+      frozen = false;
+    app.hub.tick = (dt) => {
+      if (frozen && holdFlight) return;
+      tick(dt);
+      if (
+        holdFlight &&
+        !frozen &&
+        room.match.shots === 1 &&
+        room.match.cue.height > 0.14
+      ) {
+        frozen = true;
+        room.broadcast();
+      }
+    };
+    await a.locator("#shoot").click();
+    for (const p of [a, b, viewer]) {
+      await p.waitForFunction(() => {
+        const g = window.__game,
+          mesh = g.scene.ballRenderer.meshes.get(0)?.mesh;
+        return (
+          g.state === "SHOT_IN_PROGRESS" &&
+          mesh &&
+          mesh.position.y > 0.2 &&
+          Math.abs(mesh.position.y - g.cue.radius - 0.008 - g.cue.height) < 1e-7
+        );
+      });
+      expect(
+        await p.evaluate(
+          () =>
+            window.__game.scene.ballRenderer.meshes.get(0).mesh.position.y -
+            window.__game.cue.radius -
+            0.008,
+        ),
+      ).toBeCloseTo(room.match.cue.height, 5);
+    }
+    await viewer
+      .locator("#scene")
+      .screenshot({ path: "test-results/jump-online-airborne.png" });
+    holdFlight = false;
+    await a.waitForFunction(
+      () =>
+        window.__game.shots === 1 &&
+        ["PLAYER_TURN", "BALL_IN_HAND"].includes(window.__game.state),
+    );
+    const first = room.match.events.find(
+      (e) => e.type === "collision" && (e.a === 0 || e.b === 0),
+    );
+    expect(first && (first.a === 1 || first.b === 1)).toBe(true);
+    expect(
+      room.match.events.some((e) => e.type === "landing" && e.ball === 0),
+    ).toBe(true);
+    const captures = [];
+    for (const p of [a, b, viewer]) {
+      await p.waitForFunction(
+        () =>
+          window.__game.jump === 0 &&
+          ["PLAYER_TURN", "BALL_IN_HAND"].includes(window.__game.state),
+      );
+      const stats = await p.evaluate(() => ({
+        packets: window.__jumpPackets,
+        rendered: window.__maxRenderedJump,
+        jump: window.__game.jump,
+        height: window.__game.cue.height,
+        vy: window.__game.cue.vy,
+      }));
+      expect(stats.packets.length).toBeGreaterThan(0);
+      expect(Math.max(...stats.packets.map((x) => x[1]))).toBeGreaterThan(0.1);
+      expect(stats.rendered).toBeGreaterThan(0.03);
+      expect(stats.jump).toBe(0);
+      expect(stats.height).toBe(0);
+      expect(stats.vy).toBe(0);
+      captures.push(stats.packets);
+    }
+    expect(captures[1]).toEqual(captures[0]);
+    expect(captures[2]).toEqual(captures[0]);
+    expect(errors).toEqual([]);
+  } finally {
+    for (const context of contexts) await context.close();
+    await app.close();
+  }
+});

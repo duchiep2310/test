@@ -114,7 +114,7 @@ export class AudioManager {
     } else if (type === "cue" || type === "shoot") {
       this.tone(320, 0.08, strength * 0.7, "triangle", 0, 90);
       this.tone(1800, 0.025, strength * 0.4, "sine", 0, 500);
-    } else if (type === "cushion") {
+    } else if (type === "cushion" || type === "landing") {
       this.tone(180, 0.075, strength * 0.6, "triangle", 0, 65);
     } else if (type === "pocket") {
       this.tone(160, 0.2, strength * 0.6, "sine", 0, 38);

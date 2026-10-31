@@ -37,9 +37,17 @@ Khi đã dọn hết nhóm bi trong 8-ball, nút đánh đổi thành **Chọn l
 
 Thanh **GÓC CƠ** nằm ngay dưới mặt bàn: kéo thanh để ngắm 360°, bấm **↶ / ↷** để chỉnh mỗi lần 0,1°, hoặc giữ nút để xoay liên tục. Phím **← / →** cũng chỉnh 0,1° khi không đang nhập liệu; khi focus hình bi xoáy, các phím này vẫn chỉnh xoáy. Góc cơ và camera là hai điều khiển riêng. Thanh góc chỉ cho phép chỉnh khi có thể đánh; người xem và người chưa tới lượt chỉ thấy góc ngắm được đồng bộ của người đang đánh.
 
+## Nhảy bi
+
+Ngay dưới thanh góc cơ, bật **↗ Nhảy bi**, kéo **MỨC NHẢY** (10–100%), chỉnh hướng/lực rồi đánh như bình thường. Mức bật ban đầu là 80%; lực đánh và mức nhảy cùng quyết định độ cao/tầm nhảy. Bi có đủ độ cao sẽ vượt qua bi cản; nhảy thấp vẫn có thể chạm bi. Nhảy tự tắt sau khi kết thúc cú đánh hoặc bắt đầu ván mới. Chỉ người tới lượt được thay đổi; phòng online đồng bộ cả lựa chọn lẫn độ cao thật cho hai người và người xem.
+
+Vật lý dùng độ cao và vận tốc thẳng đứng, trọng lực, tiếp đất có nảy tắt dần và va chạm cầu khi bi ở trên không. Bi đang bay vẫn giữ lượt ở trạng thái đang đánh; chỉ kết thúc khi đã tiếp đất và dừng. Chạm bi nào trước, scratch và thắng/thua vẫn được xử từ các sự kiện vật lý. Khi chuẩn bị nhảy, cơ nâng lên và chỉ có đoạn nối ngắn từ đầu cơ tới bi; không hiển thị đường dự đoán phẳng gây hiểu nhầm. Bóng bi trên nỉ tách khỏi bi để dễ nhìn độ cao, kể cả đồ họa Low.
+
+Đây là mô hình nhảy đơn giản: băng vẫn giữ bi trong bàn, không hỗ trợ nhảy ra ngoài bàn, massé, va chạm đồ vật trong phòng hoặc rigid-body 3D đầy đủ. AI hiện chọn cú đánh thường, chưa lập kế hoạch cú nhảy.
+
 ## Aim guide
 
-Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Offline, lựa chọn được nhớ trên trình duyệt. Online, Aim guide là thiết lập chung của phòng: một trong hai người chơi đổi thì cả hai và khán giả nhận cùng trạng thái, kể cả vào sau hoặc tải lại trang. Khán giả không được đổi thiết lập của phòng.
+Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Chế độ nhảy cũng chỉ hiện đoạn nối này. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Offline, lựa chọn được nhớ trên trình duyệt. Online, Aim guide là thiết lập chung của phòng: một trong hai người chơi đổi thì cả hai và khán giả nhận cùng trạng thái, kể cả vào sau hoặc tải lại trang. Khán giả không được đổi thiết lập của phòng.
 
 ## Không gian câu lạc bộ
 
@@ -95,7 +103,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Suite hiện gồm 76 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 15 luồng Chromium. Hồi quy mới kiểm tra góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Suite hiện gồm 86 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 17 luồng Chromium. Hồi quy mới kiểm tra góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 
@@ -145,7 +153,7 @@ Vật lý độc lập Three.js và nhận bước thời gian cố định; th�
 
 ## Phạm vi mô phỏng và dữ liệu
 
-Bi hiển thị 3D nhưng mô phỏng trên mặt phẳng. Follow/draw là lực hiệu chỉnh có giới hạn sau va chạm; side spin điều chỉnh phản ứng tiếp tuyến trên băng. Không có jump, massé hoặc mô hình rigid-body 3D đầy đủ. Miệng lỗ dùng vùng bắt hình tròn và biên băng kín để giữ bi ổn định; đường ngắm là gợi ý hình học, không dự báo toàn bộ cú đánh có xoáy.
+Bi lăn dùng mô phỏng mặt phẳng; cú nhảy thêm độ cao, trọng lực và va chạm cầu trên không. Follow/draw là lực hiệu chỉnh có giới hạn sau va chạm; side spin điều chỉnh phản ứng tiếp tuyến trên băng. Nhảy dùng mô hình đơn giản nêu trên; không có massé hoặc mô hình rigid-body 3D đầy đủ. Miệng lỗ dùng vùng bắt hình tròn và biên băng kín để giữ bi ổn định; đường ngắm là gợi ý hình học, không dự báo toàn bộ cú đánh có xoáy.
 
 AI dùng ghost-ball, kiểm tra đường trống và ước lượng lực. Medium xét thêm combination, Hard xét thêm bank; carom lấy mẫu góc và thử shortlist bằng solver vật lý. Có sai số ngắm theo độ khó, không học máy hoặc tìm kiếm chiến thuật dài hạn; không bảo đảm mọi cú đều hợp lệ hay ghi điểm. Chọn **Low** để tắt bóng và giảm độ phân giải trên thiết bị yếu. Hiệu năng trên điện thoại thật cần đo riêng; bố cục responsive không chứng minh tốc độ khung hình.
 

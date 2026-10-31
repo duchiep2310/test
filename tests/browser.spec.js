@@ -522,3 +522,132 @@ test("navigation bar opens screens, pans camera by holding arrows and fits mobil
   await page.locator("#tools-lobby").click();
   await expect(page.locator("#room-lobby")).toBeVisible();
 });
+
+test("jump controls launch the cue over a blocker, render its real height and land before the next turn", async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await offline(page);
+  await page.evaluate(() => {
+    const g = window.__game;
+    g.loop.stop();
+    g.start("nine");
+    g.mode.isBreak = false;
+    g.state = "PLAYER_TURN";
+    g.physics.setBalls([
+      { id: 0, x: 0, z: 0 },
+      { id: 2, x: 0.6, z: 0 },
+      { id: 1, x: 1.55, z: 0 },
+      { id: 9, x: -1, z: 0.7 },
+    ]);
+    g.notify();
+    g.render(0.016);
+  });
+  await expect(page.locator("#jump-toggle")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(page.locator("#jump-level")).toBeDisabled();
+  await page.locator("#jump-toggle").click();
+  await page.locator("#jump-level").fill("100");
+  await page.locator("#power").fill("50");
+  const jumpAim = await page.evaluate(() => {
+    const g = window.__game;
+    g.render(0.016);
+    return {
+      jump: g.jump,
+      predictions: g.scene.guideGroup.visible,
+      gap: g.scene.cueGapLine.visible,
+    };
+  });
+  expect(jumpAim).toEqual({ jump: 1, predictions: false, gap: true });
+  await page.locator("#jump-toggle").click();
+  expect(
+    await page.evaluate(() => {
+      const g = window.__game;
+      g.render(0.016);
+      return g.jump === 0 && g.scene.guideGroup.visible;
+    }),
+  ).toBe(true);
+  await page.locator("#jump-toggle").click();
+  await page.locator("#shoot").click();
+  await expect(page.locator("#jump-toggle")).toBeDisabled();
+  await expect(page.locator("#jump-level")).toBeDisabled();
+  expect(await page.evaluate(() => window.__game.setJump(0))).toBe(false);
+
+  const airborne = await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 45; i++) g.fixedUpdate(1 / 240);
+    g.render(0.016);
+    const cue = g.cue,
+      blocker = g.physics.balls.find((ball) => ball.id === 2);
+    const rendered = g.scene.ballRenderer.meshes.get(cue.id);
+    return {
+      height: cue.height,
+      x: cue.x,
+      meshHeight: rendered.mesh.position.y - cue.radius - 0.008,
+      shadowY: rendered.shadow.position.y,
+      shadowX: rendered.shadow.position.x,
+      shadowVisible: rendered.shadow.visible,
+      blocker: { x: blocker.x, vx: blocker.vx, height: blocker.height },
+      contacts: g.shotEvents.filter(
+        (event) =>
+          event.type === "collision" && (event.a === 0 || event.b === 0),
+      ),
+    };
+  });
+  expect(airborne.height).toBeGreaterThan(0.13);
+  expect(airborne.x).toBeGreaterThan(0.5);
+  expect(airborne.meshHeight).toBeCloseTo(airborne.height, 6);
+  expect(airborne.shadowY).toBeLessThan(0.02);
+  expect(airborne.shadowX).toBeCloseTo(airborne.x, 6);
+  expect(airborne.shadowVisible).toBe(true);
+  expect(airborne.blocker).toEqual({ x: 0.6, vx: 0, height: 0 });
+  expect(airborne.contacts).toEqual([]);
+  await page
+    .locator("#scene")
+    .screenshot({ path: "test-results/jump-airborne.png" });
+
+  const settled = await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 7200; i++) g.fixedUpdate(1 / 240);
+    g.render(0.016);
+    const firstContact = g.shotEvents.find(
+      (event) => event.type === "collision" && (event.a === 0 || event.b === 0),
+    );
+    return {
+      state: g.state,
+      moving: g.physics.isMoving(),
+      jump: g.jump,
+      height: g.cue.height,
+      vy: g.cue.vy,
+      firstPair: firstContact ? [firstContact.a, firstContact.b].sort() : null,
+      landed: g.shotEvents.some(
+        (event) => event.type === "landing" && event.ball === 0,
+      ),
+    };
+  });
+  expect(settled.moving).toBe(false);
+  expect(["PLAYER_TURN", "BALL_IN_HAND"]).toContain(settled.state);
+  expect(settled.firstPair).toEqual([0, 1]);
+  expect(settled.landed).toBe(true);
+  expect(settled.height).toBe(0);
+  expect(settled.vy).toBe(0);
+  expect(settled.jump).toBe(0);
+  await expect(page.locator("#jump-toggle")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .locator("#jump-control")
+    .screenshot({ path: "test-results/jump-mobile.png" });
+  expect(errors).toEqual([]);
+});

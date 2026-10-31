@@ -4,7 +4,7 @@ import { resolveBalls } from "./CollisionResolver.js";
 import { resolveCushions } from "./CushionPhysics.js";
 import { findPocket } from "./PocketDetector.js";
 
-/** Deterministic 2D billiards simulation. Render timing never enters the solver. */
+/** Deterministic planar billiards with a vertical jump axis. Render timing never enters the solver. */
 export class PhysicsEngine {
   constructor({
     pockets = true,
@@ -34,7 +34,7 @@ export class PhysicsEngine {
     this.events = [];
   }
 
-  shoot(ballId, angle, power, spin = { x: 0, y: 0 }) {
+  shoot(ballId, angle, power, spin = { x: 0, y: 0 }, jump = 0) {
     const ball = this.balls.find(
       (candidate) => candidate.id === ballId && candidate.active,
     );
@@ -42,12 +42,21 @@ export class PhysicsEngine {
       !ball ||
       this.isMoving() ||
       !Number.isFinite(angle) ||
-      !Number.isFinite(power)
+      !Number.isFinite(power) ||
+      !Number.isFinite(jump) ||
+      jump < 0 ||
+      jump > 1
     )
       return false;
     const speed = 0.3 + Math.max(0, Math.min(1, power)) * 7.7;
-    ball.vx = Math.cos(angle) * speed;
-    ball.vz = Math.sin(angle) * speed;
+    const horizontalSpeed = speed * (1 - 0.27 * jump);
+    ball.vx = Math.cos(angle) * horizontalSpeed;
+    ball.vz = Math.sin(angle) * horizontalSpeed;
+    ball.height = 0;
+    ball.vy =
+      jump > 0
+        ? (0.6 + 2.8 * jump) * Math.sqrt(Math.max(0, Math.min(1, power)))
+        : 0;
     ball.spin = {
       x: Math.max(-1, Math.min(1, spin.x || 0)),
       y: Math.max(-1, Math.min(1, spin.y || 0)),
@@ -60,7 +69,11 @@ export class PhysicsEngine {
 
   isMoving() {
     return this.balls.some(
-      (ball) => ball.active && Math.hypot(ball.vx, ball.vz) > this.sleepSpeed,
+      (ball) =>
+        ball.active &&
+        (Math.hypot(ball.vx, ball.vz) > this.sleepSpeed ||
+          ball.height > 1e-6 ||
+          Math.abs(ball.vy) > this.sleepSpeed),
     );
   }
 
@@ -73,7 +86,7 @@ export class PhysicsEngine {
     let minRadius = TABLE.radius;
     for (const b of this.balls)
       if (b.active) {
-        maxSpeed = Math.max(maxSpeed, Math.hypot(b.vx, b.vz));
+        maxSpeed = Math.max(maxSpeed, Math.hypot(b.vx, b.vz, b.vy));
         minRadius = Math.min(minRadius, b.radius);
       }
     const safeStep = Math.min(
@@ -85,19 +98,26 @@ export class PhysicsEngine {
     for (let sub = 0; sub < steps; sub++) {
       for (const ball of this.balls) {
         if (!ball.active) continue;
-        integrateBall(
+        const landing = integrateBall(
           ball,
           h,
           this.rollingResistance,
           this.linearDamping,
           this.sleepSpeed,
         );
+        if (landing !== null && landing > 0.16)
+          this._emit({ type: "landing", ball: ball.id, strength: landing });
         if (this.pockets) {
           const pocket = findPocket(ball);
           if (pocket >= 0) {
             ball.active = false;
             ball.pocket = pocket;
-            ball.vx = ball.vz = ball.angularVelocity = 0;
+            ball.vx =
+              ball.vz =
+              ball.vy =
+              ball.height =
+              ball.angularVelocity =
+                0;
             this._emit({ type: "pocket", ball: ball.id, pocket });
             continue;
           }
@@ -162,6 +182,8 @@ export class PhysicsEngine {
       z,
       vx: 0,
       vz: 0,
+      height: 0,
+      vy: 0,
       active: true,
       angularVelocity: 0,
       spin: { x: 0, y: 0 },
