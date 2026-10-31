@@ -765,3 +765,131 @@ test("each online seat has its own character camera and spectators can follow ei
     await app.close();
   }
 });
+
+test("room chat works for both players and spectators, preserves drafts and is safe to type in", async ({
+  browser,
+}) => {
+  test.setTimeout(120000);
+  const { createRoomServer } = await import("../server/index.js");
+  const app = createRoomServer({ chatCooldownMs: 100000 });
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const url = "http://127.0.0.1:" + app.server.address().port,
+    contexts = [],
+    errors = [];
+  async function join(name) {
+    const context = await browser.newContext({
+      viewport: { width: 1000, height: 850 },
+    });
+    contexts.push(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "velvet-settings",
+        JSON.stringify({ quality: "low" }),
+      ),
+    );
+    await page.goto(url);
+    await page.locator("#room-name").fill(name);
+    return page;
+  }
+  async function open(page) {
+    if (
+      (await page.locator("#chat-toggle").getAttribute("aria-expanded")) ===
+      "false"
+    )
+      await page.locator("#chat-toggle").click();
+  }
+  try {
+    const a = await join("An");
+    await a.locator("#create-room").click();
+    await expect(a.locator("#online-room")).toBeVisible();
+    const id = await a.locator("#current-room-code").textContent();
+    const b = await join("Bình");
+    await b.locator("#room-code").fill(id);
+    await b.locator("[data-role=player]").click();
+    const s = await join("Khán giả");
+    await s.locator("#room-code").fill(id);
+    await s.locator("[data-role=spectator]").click();
+    for (const p of [a, b, s]) {
+      await expect(p.locator("#room-chat")).toBeVisible();
+      await open(p);
+    }
+    const before = await a.evaluate(() => ({
+      shots: window.__game.shots,
+      angle: window.__game.angle,
+      target: window.__game.scene.target.toArray(),
+    }));
+    await a.locator("#chat-input").fill("wasd r");
+    await a.locator("#chat-input").press("Space");
+    await a.locator("#chat-input").press("ArrowLeft");
+    expect(
+      await a.evaluate(() => ({
+        shots: window.__game.shots,
+        angle: window.__game.angle,
+        target: window.__game.scene.target.toArray(),
+      })),
+    ).toEqual(before);
+    const text = '<img src=x onerror="window.__chatXss=1"> Chào mọi người 👋';
+    await a.locator("#chat-input").fill(text);
+    await a.locator("#chat-input").press("Enter");
+    for (const p of [a, b, s]) {
+      await expect(p.locator(".chat-text").last()).toHaveText(text);
+      expect(await p.locator("#chat-messages img").count()).toBe(0);
+      expect(await p.evaluate(() => window.__chatXss)).toBeUndefined();
+    }
+    await expect(a.locator("#chat-input")).toHaveValue("");
+    await b.locator("#chat-input").fill("Chúc một trận hay!");
+    await b.locator("#chat-send").click();
+    await expect(b.locator("#chat-input")).toHaveValue("");
+    await s.locator("#chat-input").fill("Khán giả chào hai bạn");
+    await s.locator("#chat-input").press("Enter");
+    await expect(a.locator(".chat-message").last()).toContainText("Khán giả");
+    await a.locator("#chat-input").fill("Bản nháp được giữ lại");
+    await a.locator("#chat-input").press("Enter");
+    await expect(a.locator("#chat-error")).toContainText("gửi hơi nhanh");
+    await expect(a.locator("#chat-input")).toHaveValue("Bản nháp được giữ lại");
+    expect(await a.evaluate(() => window.__game.shots)).toBe(0);
+    app.hub.rooms.get(id).chat.cooldownMs = 0;
+    await a.locator("#chat-input").press("Enter");
+    await expect(a.locator("#chat-input")).toHaveValue("");
+    await expect(a.locator("#chat-error")).toBeHidden();
+    await a.locator("#chat-toggle").click();
+    await s.locator("#chat-input").fill("Đến lượt ai rồi nhỉ?");
+    await s.locator("#chat-input").press("Enter");
+    await expect(a.locator("#chat-badge")).toHaveText("1");
+    await a.locator("#chat-toggle").click();
+    await expect(a.locator("#chat-badge")).toBeHidden();
+    const authorId = await b.evaluate(() => window.__game.online.chatId);
+    await b.reload();
+    await expect(b.locator("#online-room")).toBeVisible({ timeout: 15000 });
+    await open(b);
+    await expect(b.locator(".chat-message")).toHaveCount(5);
+    expect(await b.evaluate(() => window.__game.online.chatId)).toBe(authorId);
+    await a.locator("#chat-input").fill("Dòng một");
+    await a.locator("#chat-input").press("Shift+Enter");
+    await a.locator("#chat-input").pressSequentially("Dòng hai");
+    await expect(a.locator("#chat-input")).toHaveValue("Dòng một\nDòng hai");
+    await a.locator("#chat-input").press("Enter");
+    await expect(b.locator(".chat-text").last()).toHaveText(
+      "Dòng một\nDòng hai",
+    );
+    await a.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await a.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const r = await a.locator("#room-chat").boundingBox();
+    expect(r.x).toBeGreaterThanOrEqual(0);
+    expect(r.width).toBeLessThanOrEqual(390);
+    await a
+      .locator("#room-chat")
+      .screenshot({ path: "test-results/room-chat-mobile.png" });
+    expect(errors).toEqual([]);
+  } finally {
+    for (const context of contexts) await context.close();
+    await app.close();
+  }
+});

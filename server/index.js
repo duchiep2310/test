@@ -139,12 +139,17 @@ export function createRoomServer(options = {}) {
         socket.close(1008, "Rate limit");
         return;
       }
+      let data;
       try {
         if (binary) throw new Error("Chỉ hỗ trợ thông điệp JSON.");
-        hub.handle(peer, JSON.parse(bytes.toString()));
+        data = JSON.parse(bytes.toString());
+        hub.handle(peer, data);
       } catch (error) {
         peer.send({
-          type: "error",
+          type: data?.type === "chat" ? "chatError" : "error",
+          ...(data?.type === "chat" && typeof data.requestId === "string"
+            ? { requestId: data.requestId.slice(0, 40) }
+            : {}),
           message:
             error instanceof SyntaxError
               ? "Thông điệp JSON không hợp lệ."

@@ -595,3 +595,129 @@ test("jump preparation and execution remain exclusive to the active player", () 
   assert.equal(room.snapshot().aim.jump, 0.8);
   assert.equal(room.match.physics.isMoving(), false);
 });
+
+test("room chat broadcasts authoritative names and roles without changing a moving match", () => {
+  const { hub, a, b, room } = openRoom({ chatCooldownMs: 0 }, "nine"),
+    s = peer();
+  hub.handle(s, {
+    type: "join",
+    roomId: room.id,
+    spectate: true,
+    name: "Khán giả",
+  });
+  hub.handle(a, command(room, "shoot", shot));
+  const before = room.match.snapshot();
+  hub.handle(a, {
+    type: "chat",
+    text: "Chào mọi người 👋",
+    requestId: "a1",
+    name: "Giả mạo",
+    seat: 1,
+  });
+  hub.handle(b, { type: "chat", text: "Chúc một trận hay!", requestId: "b1" });
+  hub.handle(s, {
+    type: "chat",
+    text: "<img src=x onerror=alert(1)>",
+    requestId: "s1",
+  });
+  assert.deepEqual(room.match.snapshot(), before);
+  for (const member of [a, b, s]) {
+    const messages = member.messages.filter((x) => x.type === "chat");
+    assert.deepEqual(
+      messages.map((x) => [x.message.name, x.message.seat]),
+      [
+        ["An", 0],
+        ["Bình", 1],
+        ["Khán giả", null],
+      ],
+    );
+    assert.equal(messages[2].message.text, "<img src=x onerror=alert(1)>");
+    assert.ok(messages.every((x) => x.roomId === room.id));
+  }
+});
+
+test("room chat validates text and rate limits independently of shooting", () => {
+  const { hub, a, b, room } = openRoom();
+  for (const text of [null, {}, "", "  \n ", "x".repeat(301), "\u0000"])
+    assert.throws(() => hub.handle(a, { type: "chat", text }), /Tin nhắn/);
+  assert.throws(
+    () => hub.handle(a, { type: "chat", text: "Hi", requestId: {} }),
+    /Mã tin nhắn/,
+  );
+  assert.equal(room.chat.messages.length, 0);
+  hub.handle(a, {
+    type: "chat",
+    text: "  Chào\r\nnhé\u0000  ",
+    requestId: "valid",
+  });
+  assert.equal(room.chat.messages[0].text, "Chào\nnhé");
+  assert.throws(
+    () => hub.handle(a, { type: "chat", text: "Quá nhanh" }),
+    /hơi nhanh/,
+  );
+  hub.handle(b, { type: "chat", text: "Tôi vẫn gửi được" });
+  assert.equal(room.chat.messages.length, 2);
+  assert.equal(room.match.shots, 0);
+  hub.handle(a, command(room, "shoot", shot));
+  assert.equal(room.match.shots, 1);
+});
+
+test("chat retains fifty messages for late join and reconnect without exposing seat tokens", () => {
+  const { hub, a, room } = openRoom({ chatCooldownMs: 0 });
+  const oldId = a.chatId,
+    resumeToken = room.players[0].token;
+  for (let i = 1; i <= 55; i++)
+    hub.handle(a, { type: "chat", text: "Tin " + i, requestId: "id" + i });
+  assert.equal(room.chat.messages.length, 50);
+  assert.equal(room.chat.messages[0].id, 6);
+  const spectator = peer();
+  hub.handle(spectator, {
+    type: "join",
+    roomId: room.id,
+    spectate: true,
+    name: "Xem",
+  });
+  const joined = spectator.messages.find((x) => x.type === "joined");
+  assert.equal(joined.messages.length, 50);
+  assert.equal(joined.messages.at(-1).text, "Tin 55");
+  assert.equal(JSON.stringify(joined.messages).includes(resumeToken), false);
+  const history = JSON.stringify(room.chat.messages);
+  room.start();
+  assert.equal(JSON.stringify(room.chat.messages), history);
+  room.remove(a, false);
+  const resumed = peer();
+  hub.handle(resumed, { type: "join", roomId: room.id, resumeToken });
+  assert.equal(resumed.chatId, oldId);
+  assert.equal(
+    resumed.messages.find((x) => x.type === "joined").messages.length,
+    50,
+  );
+  hub.handle(resumed, { type: "rename", name: "An mới" });
+  hub.handle(resumed, { type: "chat", text: "Đã quay lại" });
+  assert.equal(room.chat.messages.at(-1).name, "An mới");
+  assert.equal(room.chat.messages[0].name, "An");
+});
+
+test("chat stays in its room and removed peers cannot send", () => {
+  const hub = new RoomHub({ chatCooldownMs: 0 }),
+    a = peer(),
+    other = peer();
+  hub.handle(a, { type: "create", mode: "eight", name: "An" });
+  hub.handle(other, { type: "create", mode: "eight", name: "Bình" });
+  const room = a.room;
+  hub.handle(a, {
+    type: "chat",
+    roomId: other.room.id,
+    text: "Đúng phòng của tôi",
+  });
+  assert.equal(
+    other.messages.some((x) => x.type === "chat"),
+    false,
+  );
+  room.remove(a, true);
+  assert.throws(
+    () => hub.handle(a, { type: "chat", text: "Đã rời" }),
+    /chưa vào phòng/,
+  );
+  assert.throws(() => room.chat.post(a, { text: "Đã rời" }), /chưa vào phòng/);
+});

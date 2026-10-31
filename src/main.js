@@ -4,6 +4,7 @@ import { CueAngleControl } from "./ui/CueAngleControl.js";
 import { ShotCallDialog } from "./ui/ShotCallDialog.js";
 import { JumpControl } from "./ui/JumpControl.js";
 import { PlayerViewControls } from "./ui/PlayerViewControls.js";
+import { RoomChat } from "./ui/RoomChat.js";
 import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
@@ -68,6 +69,7 @@ let cueAngleControl = null;
 let shotCallDialog = null;
 let jumpControl = null;
 let playerViewControls = null;
+let roomChat = null;
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -349,6 +351,7 @@ function update(g) {
   shotCallDialog?.update();
   jumpControl?.update();
   playerViewControls?.update();
+  roomChat?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
@@ -370,6 +373,7 @@ try {
   shotCallDialog = new ShotCallDialog(game);
   jumpControl = new JumpControl(game);
   playerViewControls = new PlayerViewControls(game);
+  roomChat = new RoomChat(game);
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;
@@ -598,7 +602,7 @@ function settings() {
   const s = game.settings;
   showModal(
     "Your club. Your way.",
-    `<form id="settings-form"><div class="settings-grid"><label>Opponent<select name="opponent"><option value="local">Local · two players</option><option value="ai">The house · AI opponent</option></select></label><label>AI difficulty<select name="difficulty"><option value="easy">Easy · a relaxed game</option><option value="medium">Medium · a worthy rival</option><option value="hard">Hard · an exacting table</option></select></label><label>Carom target score<select name="targetScore"><option>3</option><option>5</option><option>10</option><option>20</option></select></label><label>Graphics quality<select name="quality"><option value="low">Low · best performance</option><option value="medium">Medium · balanced</option><option value="high">High · full detail</option></select></label><label>Table felt<select name="tableColor"><option value="#087f75">Club teal</option><option value="#176f48">Classic green</option><option value="#245b89">Tournament blue</option><option value="#6d3452">Burgundy velvet</option></select></label><label>Ball appearance<select name="ballStyle"><option value="classic">Classic porcelain</option><option value="gloss">Polished gloss</option></select></label><label>Camera sensitivity<input name="sensitivity" type="range" min="0.3" max="2" step="0.1"></label><label>Sound effects<input name="volume" type="range" min="0" max="1" step="0.05"></label><label>Ambient music<input name="music" type="range" min="0" max="0.4" step="0.02"></label><label>Interface language<select name="language"><option value="en">English</option><option value="vi">Tiếng Việt · core controls</option></select></label><label class="checkbox-label"><input type="checkbox" name="aimGuide"> Show aim guide</label></div><p class="fine-print">Settings are saved on this device. Carom target changes apply to your next match. Rules and commentary are in English.</p><button class="primary full" type="submit">Save preferences ${icon("check", 18)}</button></form>`,
+    `<form id="settings-form"><div class="settings-grid"><label>Opponent<select name="opponent"><option value="local">Local · two players</option><option value="ai">The house · AI opponent</option></select></label><label>AI difficulty<select name="difficulty"><option value="easy">Easy · a relaxed game</option><option value="medium">Medium · a worthy rival</option><option value="hard">Hard · an exacting table</option></select></label><label>Carom target score<select name="targetScore"><option>3</option><option>5</option><option>10</option><option>20</option></select></label><label>Graphics quality<select name="quality"><option value="low">Low · best performance</option><option value="medium">Medium · balanced</option><option value="high">High · full detail</option></select></label><label>Table felt<select name="tableColor"><option value="#087f75">Club teal</option><option value="#176f48">Classic green</option><option value="#245b89">Tournament blue</option><option value="#6d3452">Burgundy velvet</option></select></label><label>Ball appearance<select name="ballStyle"><option value="classic">Classic resin · satin</option><option value="gloss">Polished resin · gloss</option></select></label><label>Camera sensitivity<input name="sensitivity" type="range" min="0.3" max="2" step="0.1"></label><label>Sound effects<input name="volume" type="range" min="0" max="1" step="0.05"></label><label>Ambient music<input name="music" type="range" min="0" max="0.4" step="0.02"></label><label>Interface language<select name="language"><option value="en">English</option><option value="vi">Tiếng Việt · core controls</option></select></label><label class="checkbox-label"><input type="checkbox" name="aimGuide"> Show aim guide</label></div><p class="fine-print">Settings are saved on this device. Carom target changes apply to your next match. Rules and commentary are in English.</p><button class="primary full" type="submit">Save preferences ${icon("check", 18)}</button></form>`,
   );
   const form = $("#settings-form");
   for (const el of form.elements) {

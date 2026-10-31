@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Match } from "../src/core/Match.js";
 import { nameOf, shotOf } from "./validation.js";
+import { RoomChat } from "./RoomChat.js";
 
 const token = () => randomBytes(24).toString("base64url");
 export class Room {
@@ -22,6 +23,7 @@ export class Room {
     this.emptySince = Date.now();
     this.reconnectMs = options.reconnectMs ?? 60000;
     this.maxSpectators = options.maxSpectators ?? 200;
+    this.chat = new RoomChat(this, options.chatCooldownMs ?? 800);
   }
   get ready() {
     return this.players.every((p) => p?.peer && !p.peer.closed);
@@ -53,12 +55,14 @@ export class Room {
         player.peer.socket.close(4001, "Session replaced");
       }
       player.peer = peer;
+      peer.chatId = player.chatId;
       player.disconnectedAt = null;
       peer.room = this;
       peer.seat = seat;
       this.emptySince = null;
       this.ack(peer, player.token);
     } else {
+      peer.chatId ??= token();
       const seat = data.spectate
         ? -1
         : this.players.findIndex((p) => p === null);
@@ -75,6 +79,7 @@ export class Room {
       } else {
         const player = {
           name: nameOf(data.name),
+          chatId: peer.chatId,
           token: token(),
           peer,
           disconnectedAt: null,
@@ -96,6 +101,8 @@ export class Room {
       roomId: this.id,
       seat: peer.seat,
       resumeToken,
+      chatId: peer.chatId,
+      messages: [...this.chat.messages],
       protocol: 1,
       serverTime: Date.now(),
     });
@@ -159,6 +166,10 @@ export class Room {
     }
   }
   command(peer, data) {
+    if (data.type === "chat") {
+      this.chat.post(peer, data);
+      return;
+    }
     if (data.type === "aimGuide") {
       if (this.seatOf(peer) < 0)
         throw new Error("Khán giả không thể đổi Aim guide của phòng.");
@@ -191,6 +202,7 @@ export class Room {
       peer.seat = seat;
       this.players[seat] = {
         name: peer.name,
+        chatId: peer.chatId,
         token: token(),
         peer,
         disconnectedAt: null,

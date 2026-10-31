@@ -1,32 +1,40 @@
 import * as THREE from "three";
 import { BALL_COLORS, TABLE } from "../core/Constants.js";
 
-function ballTexture(id, carom = false) {
+function ballTexture(id, carom = false, quality = "medium") {
   const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 256;
+  canvas.width = quality === "low" ? 512 : 1024;
+  canvas.height = canvas.width / 2;
   const ctx = canvas.getContext("2d");
+  ctx.scale(canvas.width / 1024, canvas.height / 512);
   const color = carom
     ? ["#faf7e9", "#e9b724", "#d6483f"][id]
-    : BALL_COLORS[id] || "#ffffff";
+    : id === 8
+      ? "#11191b"
+      : id === 0
+        ? "#fcfaf3"
+        : BALL_COLORS[id] || "#ffffff";
   ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 512, 256);
+  ctx.fillRect(0, 0, 1024, 512);
   if (!carom && id > 8) {
-    ctx.fillStyle = "#f6f3e7";
-    ctx.fillRect(0, 0, 512, 63);
-    ctx.fillRect(0, 193, 512, 63);
+    ctx.fillStyle = "#faf7ee";
+    ctx.fillRect(0, 0, 1024, 126);
+    ctx.fillRect(0, 386, 1024, 126);
   }
   if (!carom && id !== 0) {
-    for (const x of [128, 384]) {
-      ctx.fillStyle = "#fffdf2";
+    for (const x of [256, 768]) {
+      ctx.fillStyle = "#fffcf2";
       ctx.beginPath();
-      ctx.ellipse(x, 128, 34, 34, 0, 0, Math.PI * 2);
+      ctx.ellipse(x, 256, 67, 67, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#172128";
-      ctx.font = "bold 45px Arial";
+      ctx.strokeStyle = "#a18d5d7a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#14231e";
+      ctx.font = "700 84px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(String(id), x, 130);
+      ctx.fillText(String(id), x, 260);
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
@@ -51,7 +59,7 @@ export class BallRenderer {
   constructor(scene) {
     this.scene = scene;
     this.meshes = new Map();
-    this.geometry = new THREE.SphereGeometry(TABLE.radius, 28, 20);
+    this.geometry = new THREE.SphereGeometry(TABLE.radius, 36, 24);
     this.shadowGeometry = new THREE.PlaneGeometry(1, 1);
     this.shadowTexture = contactShadowTexture();
     this.carom = false;
@@ -73,16 +81,23 @@ export class BallRenderer {
     scene.add(this.cueHalo);
   }
   create(ball) {
-    const material = new THREE.MeshStandardMaterial({
-      map: ballTexture(ball.id, this.carom),
-      roughness: this.ballStyle === "classic" ? 0.32 : 0.17,
-      metalness: 0.03,
+    const material = new THREE.MeshPhysicalMaterial({
+      map: ballTexture(ball.id, this.carom, this.quality),
+      metalness: 0,
+      ior: 1.5,
+      specularIntensity: 0.8,
+      envMapIntensity: 1.15,
     });
+    this.finish(material);
     const mesh = new THREE.Mesh(this.geometry, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    // Initial orientation exposes a number and gives every stripe a different roll.
-    mesh.rotation.set(0.45 + (ball.id % 3) * 0.35, (ball.id % 4) * 0.4, 0);
+    // Face one number toward the raised camera; rolling takes over after a shot.
+    mesh.rotation.set(
+      -0.95 + ((ball.id % 3) - 1) * 0.08,
+      ((ball.id % 4) - 1.5) * 0.14,
+      ((ball.id % 5) - 2) * 0.28,
+    );
     const height = Math.max(0, ball.height || 0);
     mesh.position.set(
       ball.x,
@@ -193,8 +208,34 @@ export class BallRenderer {
   }
   setStyle(style) {
     this.ballStyle = style;
-    for (const { mesh } of this.meshes.values())
-      mesh.material.roughness = style === "classic" ? 0.32 : 0.17;
+    for (const { mesh } of this.meshes.values()) this.finish(mesh.material);
+  }
+  finish(material) {
+    const gloss = this.ballStyle !== "classic";
+    material.roughness = gloss ? 0.12 : 0.24;
+    material.clearcoat = this.quality === "low" ? 0.45 : gloss ? 1 : 0.8;
+    material.clearcoatRoughness = gloss ? 0.065 : 0.14;
+  }
+  setQuality(quality) {
+    if (this.quality === quality) return;
+    const resizeTextures = (this.quality === "low") !== (quality === "low");
+    this.quality = quality;
+    const previous = this.geometry;
+    this.geometry = new THREE.SphereGeometry(
+      TABLE.radius,
+      quality === "low" ? 24 : quality === "high" ? 48 : 36,
+      quality === "low" ? 16 : quality === "high" ? 32 : 24,
+    );
+    for (const [id, { mesh }] of this.meshes) {
+      mesh.geometry = this.geometry;
+      if (resizeTextures) {
+        mesh.material.map.dispose();
+        mesh.material.map = ballTexture(id, this.carom, quality);
+        mesh.material.needsUpdate = true;
+      }
+      this.finish(mesh.material);
+    }
+    previous.dispose();
   }
   reset() {
     for (const entry of this.meshes.values()) this.remove(entry);

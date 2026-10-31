@@ -46,6 +46,12 @@ export class RoomClient {
     this.name = "Khách";
     this.retry = 0;
     this.lastAimAt = 0;
+    this.chatMessages = [];
+    this.chatVersion = 0;
+    this.chatId = null;
+    this.chatPending = null;
+    this.chatError = "";
+    this.chatSequence = 0;
   }
   static saved() {
     try {
@@ -126,6 +132,12 @@ export class RoomClient {
           this.seat = data.seat;
           this.resumeToken = data.resumeToken;
           this.connected = true;
+          this.chatId = data.chatId ?? null;
+          this.chatMessages = Array.isArray(data.messages)
+            ? data.messages.slice(-50)
+            : [];
+          this.chatVersion++;
+          this.chatPending = null;
           this.retry = 0;
           this.game.online = this;
           try {
@@ -139,6 +151,30 @@ export class RoomClient {
               }),
             );
           } catch {}
+        } else if (data.type === "chat" && data.roomId === this.roomId) {
+          const m = data.message;
+          if (!m || typeof m.text !== "string" || !Number.isSafeInteger(m.id))
+            return;
+          if (!this.chatMessages.some((item) => item.id === m.id)) {
+            this.chatMessages.push(m);
+            this.chatMessages = this.chatMessages.slice(-50);
+            this.chatVersion++;
+          }
+          if (m.authorId === this.chatId) this.chatError = "";
+          if (
+            m.authorId === this.chatId &&
+            m.requestId === this.chatPending?.id
+          ) {
+            this.chatPending = null;
+            this.chatError = "";
+          }
+          this.game.notify();
+        } else if (data.type === "chatError") {
+          if (data.requestId === this.chatPending?.id) {
+            this.chatPending = null;
+            this.chatError = data.message;
+            this.game.notify();
+          }
         } else if (data.type === "renamed") {
           this.name = data.name;
           try {
@@ -186,6 +222,7 @@ export class RoomClient {
         const hadSession = Boolean(this.roomId);
         this.connected = false;
         this.pending = false;
+        this.chatPending = null;
         finish(new Error("Kết nối máy chủ đã đóng. Vui lòng thử lại."));
         if (hadSession && !this.closed) {
           this.error = "Mất kết nối. Đang thử kết nối lại…";
@@ -309,6 +346,20 @@ export class RoomClient {
       calledPocket: g.calledPocket,
     };
   }
+  sendChat(text) {
+    if (!this.connected || !this.info || !this.chatId || this.chatPending)
+      return false;
+    text = text.trim();
+    if (!text || text.length > 300) return false;
+    const id = `c${Date.now().toString(36)}${(++this.chatSequence).toString(36)}`;
+    const sent = this.send({ type: "chat", text, requestId: id });
+    if (sent) {
+      this.chatPending = { id, text, sentAt: performance.now() };
+      this.chatError = "";
+      this.game.notify();
+    }
+    return sent;
+  }
   shoot() {
     if (!this.canShoot) return false;
     const sent = this.command("shoot", this.shotData());
@@ -359,6 +410,11 @@ export class RoomClient {
   }
   update() {
     const now = performance.now();
+    if (this.chatPending && now - this.chatPending.sentAt > 10000) {
+      this.chatPending = null;
+      this.chatError = "Chưa xác nhận tin nhắn. Kiểm tra kết nối rồi thử lại.";
+      this.game.notify();
+    }
     if (this.pending && now - this.pendingAt > 3000) {
       this.pending = false;
       this.error = "Cú đánh chưa được xác nhận. Kiểm tra kết nối rồi thử lại.";

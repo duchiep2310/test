@@ -5,6 +5,7 @@ import { BallRenderer } from "./BallRenderer.js";
 import { ClubEnvironment } from "./ClubEnvironment.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { PlayerRenderer } from "./PlayerRenderer.js";
+import { createClubCue } from "./CueRenderer.js";
 
 export class SceneManager {
   constructor(container, callbacks = {}) {
@@ -103,39 +104,10 @@ export class SceneManager {
     pmrem.dispose();
   }
   buildCue() {
-    this.cue = new THREE.Group();
+    const model = createClubCue();
+    this.cue = model.group;
+    this.cueTip = model.tip;
     this.scene.add(this.cue);
-    const maple = new THREE.MeshStandardMaterial({
-      color: "#cfab70",
-      roughness: 0.42,
-    });
-    const ebony = new THREE.MeshStandardMaterial({
-      color: "#38332c",
-      roughness: 0.3,
-    });
-    const ferrule = new THREE.MeshStandardMaterial({
-      color: "#f5e9c8",
-      roughness: 0.3,
-    });
-    const tip = new THREE.MeshStandardMaterial({
-      color: "#7fa8a1",
-      roughness: 0.85,
-    });
-    const section = (a, b, length, x, mat) => {
-      const m = new THREE.Mesh(
-        new THREE.CylinderGeometry(a, b, length, 12),
-        mat,
-      );
-      m.rotation.z = Math.PI / 2;
-      m.position.set(x, 0.055, 0);
-      m.castShadow = true;
-      this.cue.add(m);
-      return m;
-    };
-    section(0.012, 0.022, 0.92, -0.66, maple);
-    section(0.022, 0.031, 0.58, -1.41, ebony);
-    section(0.012, 0.012, 0.055, -0.172, ferrule);
-    this.cueTip = section(0.013, 0.013, 0.016, -0.136, tip);
   }
   buildGuide() {
     // This short alignment segment is independent of trajectory predictions.
@@ -672,6 +644,7 @@ export class SceneManager {
       this.keyLight.shadow.map?.dispose();
       this.keyLight.shadow.map = null;
       this.environment.setQuality(settings.quality);
+      this.ballRenderer.setQuality(settings.quality);
       this.scene.traverse((o) => {
         if (o.material)
           for (const mat of Array.isArray(o.material)

@@ -31,6 +31,20 @@ Thanh điều hướng trên bàn mở nhanh **Sảnh chơi / Luật chơi / Đ�
 
 Sau lỗi cho quyền đặt bi trắng, nhấn lên bàn để đặt. Trước khi đánh, có thể chọn **Đặt lại bi trắng** rồi nhấn vị trí mới, lặp lại nhiều lần. Vị trí chồng bi/ngoài bàn vẫn bị từ chối; chỉ người tới lượt được đặt. Cú đánh hợp lệ bắt đầu sẽ khóa quyền đặt lại cho đến lần được cấp quyền tiếp theo.
 
+## Chat trong phòng
+
+Vào phòng online để thấy **Trò chuyện** ở góc dưới bên phải. Cả hai người chơi và khán giả đều gửi được, kể cả khi đang chờ đối thủ, bi đang lăn hoặc trận tạm dừng. Bấm tiêu đề để thu gọn/mở; khi thu gọn có huy hiệu tin chưa đọc. Điện thoại/màn hình nhỏ mặc định thu gọn để dành chỗ cho bàn.
+
+Mỗi tin tối đa 300 ký tự: **Enter** gửi, **Shift + Enter** xuống dòng, **Esc** trong ô nhập thu gọn chat. Nhập tin không điều khiển cơ/camera hoặc bắn bi. Chỉ xóa nội dung ô nhập sau khi máy chủ xác nhận gửi; lỗi gửi/mất kết nối giữ nội dung để thử lại trong cửa sổ hiện tại. Tên người gửi và vai trò do máy chủ xác định, thay tên chỉ áp dụng cho tin mới. Nội dung HTML hiển thị nguyên dạng chữ.
+
+Phòng giữ **50 tin gần nhất** cho người vào sau/nối lại, dùng chung qua các ván tái đấu. Tin chỉ phát trong phòng hiện tại, tách khỏi snapshot vật lý và có giới hạn tốc độ gửi. Lịch sử lưu trong RAM cùng phòng, mất khi phòng hết hạn hoặc máy chủ khởi động lại; chưa có tin nhắn riêng hoặc lưu trữ tài khoản. Chat không hiển thị trong AI/local vì không có người khác kết nối.
+
+## Cơ và bộ bi
+
+Cơ dùng thân maple có vân, đuôi gỗ đen khảm ngà bốn mũi, vòng kim loại màu champagne, tay quấn da và đầu cơ phủ phấn. Thân thuôn nhỏ về phía đầu cơ. Đầu cơ và đường ngắm dùng cùng vị trí hình học trong cú thường và cú nhảy.
+
+Bi dùng vật liệu resin có lớp bóng phủ, phản chiếu ánh sáng phòng, vòng số màu ngà và chữ số rõ. Bi trơn/sọc, số và màu giữ đúng bộ Pool; Carom dùng trắng/vàng/đỏ. Trong **Settings → Ball appearance**, chọn **Classic resin · satin** hoặc **Polished resin · gloss**. Low dùng lưới cầu và texture nhẹ hơn; Medium/High tăng độ mịn. Bi vẫn xoay theo chuyển động thực và có bóng tiếp xúc trên nỉ khi nhảy.
+
 ## Bi số 8 cuối cùng và góc cơ
 
 Khi đã dọn hết nhóm bi trong 8-ball, nút đánh đổi thành **Chọn lỗ & đánh bi 8** nếu chưa gọi lỗ. Bấm nút (hoặc dùng Space khi không nhập liệu) để mở sơ đồ sáu lỗ, chọn lỗ rồi bấm **Đánh bi số 8**. Các số 1–6 trùng với số cạnh lỗ trên bàn. **Quay lại ngắm** hoặc Esc đóng bảng mà không đánh. Có thể chọn lỗ trước qua bảng **Call your shot**. Luật thắng vẫn yêu cầu bi số 8 vào đúng lỗ đã gọi và không phạm lỗi; máy chủ xác thực cùng luật trong phòng online. 10-ball cũng mở bảng chọn lỗ khi chưa gọi lỗ.
@@ -113,7 +127,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Suite hiện gồm 88 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 19 luồng Chromium. Hồi quy mới kiểm tra lỗ khoét thật bằng tia giao hình học, camera qua mắt/sau lưng, nhận diện đúng ghế trong phòng online, góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Suite hiện gồm 92 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) và 20 luồng Chromium. Hồi quy mới kiểm tra lỗ khoét thật bằng tia giao hình học, camera qua mắt/sau lưng, nhận diện đúng ghế trong phòng online, góc cơ/giữ nút/phím mũi tên, cú thắng bi số 8 qua bảng gọi lỗ ở cả offline và online, cùng quyền chỉ xem của đối thủ/khán giả. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 
