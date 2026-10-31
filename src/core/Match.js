@@ -13,6 +13,7 @@ export class Match {
     this.physics.setBalls(this.mode.setup());
     this.state = this.mode.isBreak ? S.BREAK_SHOT : S.PLAYER_TURN;
     this.shots = 0;
+    this.placementAllowed = false;
     this.revision = 0;
     this.events = [];
     this.effects = [];
@@ -65,6 +66,7 @@ export class Match {
       this.calledBall = targets[0];
     if (!this.physics.shoot(this.shotCue, this.angle, this.power, this.spin))
       return false;
+    this.placementAllowed = false;
     this.effects.push({ type: "cue", strength: this.power });
     this.state = S.SHOT_IN_PROGRESS;
     this.settleTime = 0;
@@ -101,6 +103,7 @@ export class Match {
       this.state = S.GAME_OVER;
       this.finishedAt = Date.now();
     } else if (result.ballInHand) {
+      this.placementAllowed = true;
       this.cue.active = false;
       this.cue.vx = this.cue.vz = 0;
       this.state = S.BALL_IN_HAND;
@@ -128,13 +131,32 @@ export class Match {
   }
   place(x, z) {
     if (
-      this.state !== S.BALL_IN_HAND ||
+      !(
+        this.state === S.BALL_IN_HAND ||
+        (this.state === S.PLAYER_TURN && this.placementAllowed)
+      ) ||
+      this.physics.isMoving() ||
       !this.physics.placeBall(this.mode.cueId(), x, z)
     )
       return false;
+    this.placementAllowed = true;
     this.state = S.PLAYER_TURN;
-    this.message = "Đã đặt bi cái. Đến lượt bạn đánh.";
+    this.message =
+      "Đã đặt bi cái. Có thể chọn Đặt lại bi trắng trước khi đánh.";
     this.revision++;
+    return true;
+  }
+  repositionCue() {
+    if (
+      !this.placementAllowed ||
+      this.state !== S.PLAYER_TURN ||
+      this.physics.isMoving()
+    )
+      return false;
+    this.state = S.BALL_IN_HAND;
+    this.revision++;
+    this.message =
+      "Chọn một vị trí mới cho bi trắng. Quyền đặt bi chỉ kết thúc khi đánh.";
     return true;
   }
   pause() {
@@ -170,6 +192,7 @@ export class Match {
       state: this.state,
       revision: this.revision,
       shots: this.shots,
+      placementAllowed: this.placementAllowed,
       cushions: this.cushions,
       elapsed: this.elapsed,
       message: this.message,

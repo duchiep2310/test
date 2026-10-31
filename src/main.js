@@ -1,4 +1,5 @@
 import "./styles/main.css";
+import { MatchControls } from "./ui/MatchControls.js";
 import { RoomLobby } from "./ui/RoomLobby.js";
 import { Game } from "./core/Game.js";
 import { MODES, BALL_COLORS, POCKETS } from "./core/Constants.js";
@@ -58,6 +59,7 @@ app.innerHTML = `
 
 let game;
 let lobby = null;
+let matchControls = null;
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -312,6 +314,8 @@ function update(g) {
     )) {
       if ("disabled" in el) el.disabled = !g.online.canAct;
     }
+    $("#guide-toggle").disabled = g.online.seat == null || !g.online.connected;
+    $("#guide-toggle").title = "Aim guide được đồng bộ cho cả phòng";
     $("#pause").disabled = g.online.seat == null || blocked;
     $("#restart").disabled =
       g.online.seat == null || g.state !== "GAME_OVER" || blocked;
@@ -321,11 +325,12 @@ function update(g) {
   } else {
     document
       .querySelectorAll(
-        "#power,#reset-spin,#call-ball,[data-pocket],#pause,#restart,[data-mode]",
+        "#power,#reset-spin,#call-ball,[data-pocket],#pause,#restart,[data-mode],#guide-toggle",
       )
       .forEach((b) => (b.disabled = false));
   }
   lobby?.update();
+  matchControls?.update();
   if (g.state === "GAME_OVER" && !resultShown) {
     resultShown = true;
     queueMicrotask(showResult);
@@ -342,6 +347,7 @@ try {
   translate();
   lobby = new RoomLobby(game);
   window.__lobby = lobby;
+  matchControls = new MatchControls(game, lobby);
 } catch (error) {
   console.error(error);
   $("#render-error").hidden = false;
@@ -583,6 +589,13 @@ function settings() {
       form.elements[name].title =
         "Rời phòng online để thay đổi thiết lập trận.";
     }
+  if (game.online)
+    form.elements.aimGuide.disabled =
+      game.online.seat == null || !game.online.connected;
+  let guideEdited = false;
+  form.elements.aimGuide.onchange = () => {
+    guideEdited = true;
+  };
   form.onsubmit = (e) => {
     e.preventDefault();
     const values = {};
@@ -596,6 +609,7 @@ function settings() {
             : el.value;
     }
     if (game.online) {
+      if (!guideEdited) delete values.aimGuide;
       delete values.opponent;
       delete values.targetScore;
     }
@@ -614,7 +628,7 @@ function showResult() {
   const winner = escapeHtml(game.playerName(game.mode.winner));
   showModal(
     "A game well played.",
-    `<div class="result-content"><div class="result-trophy">${icon("trophy", 45)}</div><div class="eyebrow">${MODES.find((m) => m.id === game.mode.id).name.toUpperCase()}</div><h3>${winner} wins.</h3><p>${game.message}</p><div class="result-stats"><span><strong>${game.mode.scores[0]} — ${game.mode.scores[1]}</strong>FINAL SCORE</span><span><strong>${formatTime(game.elapsed)}</strong>AT THE TABLE</span><span><strong>${game.shots}</strong>SHOTS PLAYED</span></div><div class="modal-buttons"><button class="secondary" id="result-menu">Main menu</button><button class="primary" id="result-replay">Play again ${icon("arrow", 18)}</button></div></div>`,
+    `<div class="result-content"><div class="result-trophy">${icon("trophy", 45)}</div><div class="eyebrow">${MODES.find((m) => m.id === game.mode.id).name.toUpperCase()}</div><h3>${winner} wins.</h3><p>${game.message}</p><div class="result-series"><small>TỈ SỐ CHUNG CUỘC · SỐ VÁN THẮNG</small><div><span>${escapeHtml(game.playerName(0))}</span><strong>${game.seriesScores[0]} — ${game.seriesScores[1]}</strong><span>${escapeHtml(game.playerName(1))}</span></div></div><div class="result-stats"><span><strong>${game.mode.scores[0]} — ${game.mode.scores[1]}</strong>FINAL SCORE</span><span><strong>${formatTime(game.elapsed)}</strong>AT THE TABLE</span><span><strong>${game.shots}</strong>SHOTS PLAYED</span></div><div class="modal-buttons"><button class="secondary" id="result-menu">Main menu</button><button class="primary" id="result-replay">Play again ${icon("arrow", 18)}</button></div></div>`,
   );
   $("#result-replay").onclick = () => startMode(game.mode.id);
   $("#result-menu").onclick = () => {

@@ -252,6 +252,11 @@ export class RoomClient {
     g.physics.pockets = g.mode.pockets;
     g.physics.setBalls(snapshot.balls);
     g.state = snapshot.state;
+    g.placementAllowed = Boolean(snapshot.placementAllowed);
+    const guideChanged =
+      typeof snapshot.aimGuide === "boolean" &&
+      snapshot.aimGuide !== g.settings.aimGuide;
+    g.applySharedAimGuide(snapshot.aimGuide);
     g.shots = snapshot.shots;
     g.cushions = snapshot.cushions;
     g.message = snapshot.message;
@@ -271,7 +276,8 @@ export class RoomClient {
       );
       if (this.seat != null) g.saveMatch();
     }
-    if (changedRevision || previous?.ready !== snapshot.ready) g.notify();
+    if (changedRevision || guideChanged || previous?.ready !== snapshot.ready)
+      g.notify();
     this.onChange(this);
   }
   send(data) {
@@ -310,8 +316,26 @@ export class RoomClient {
     return sent;
   }
   place(x, z) {
-    if (!this.canAct || this.game.state !== "BALL_IN_HAND") return false;
-    return this.command("place", { x, z });
+    if (
+      !this.canAct ||
+      !(this.game.state === "BALL_IN_HAND" || this.game.canReposition)
+    )
+      return false;
+    const sent = this.command("place", { x, z });
+    if (sent) {
+      this.pending = true;
+      this.pendingAt = performance.now();
+    }
+    return sent;
+  }
+  repositionCue() {
+    if (!this.game.canReposition) return false;
+    const sent = this.command("reposition");
+    if (sent) {
+      this.pending = true;
+      this.pendingAt = performance.now();
+    }
+    return sent;
   }
   pause() {
     if (this.seat != null && this.connected && this.info?.ready)

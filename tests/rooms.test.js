@@ -88,7 +88,14 @@ test("spectators cannot shoot, move balls, pause or request a rematch", () => {
   const s = peer();
   hub.handle(s, { type: "join", roomId: room.id });
   const before = JSON.stringify(room.match.snapshot());
-  for (const type of ["shoot", "place", "pause", "rematch", "state"])
+  for (const type of [
+    "shoot",
+    "place",
+    "pause",
+    "rematch",
+    "state",
+    "reposition",
+  ])
     assert.throws(
       () => hub.handle(s, command(room, type, { ...shot, x: 0, z: 0 })),
       /Khán giả/,
@@ -397,4 +404,106 @@ test("rename updates only the sender, broadcasts names and preserves match/seat 
   hub.handle(a, { type: "leave" });
   hub.handle(s, { type: "claim" });
   assert.equal(room.players[0].name, "Khán giả Việt");
+});
+
+test("Aim guide is a room setting shared by both players, late viewers and rematches", () => {
+  const { hub, a, b, room } = openRoom();
+  const viewer = peer();
+  hub.handle(viewer, { type: "join", roomId: room.id, spectate: true });
+  hub.handle(b, { type: "aimGuide", enabled: false });
+  for (const p of [a, b, viewer])
+    assert.equal(
+      p.messages.filter((m) => m.type === "snapshot").at(-1).aimGuide,
+      false,
+    );
+  assert.throws(
+    () => hub.handle(viewer, { type: "aimGuide", enabled: true }),
+    /Khán giả/,
+  );
+  assert.equal(room.aimGuide, false);
+  assert.throws(
+    () => hub.handle(a, { type: "aimGuide", enabled: "false" }),
+    /không hợp lệ/,
+  );
+  const late = peer();
+  hub.handle(late, { type: "join", roomId: room.id, spectate: true });
+  assert.equal(
+    late.messages.filter((m) => m.type === "snapshot").at(-1).aimGuide,
+    false,
+  );
+  room.match.state = "GAME_OVER";
+  room.match.mode.winner = 0;
+  hub.handle(a, command(room, "rematch"));
+  hub.handle(b, command(room, "rematch"));
+  assert.equal(room.aimGuide, false);
+  hub.handle(a, { type: "aimGuide", enabled: true });
+  assert.equal(room.snapshot().aimGuide, true);
+});
+
+test("series scores count a result once, survive rematches and reconnects, reset for a changed pair", () => {
+  const { hub, a, b, room } = openRoom();
+  room.match.state = "GAME_OVER";
+  room.match.mode.winner = 0;
+  for (let i = 0; i < 5; i++) room.broadcast();
+  assert.deepEqual(room.snapshot().seriesScores, [1, 0]);
+  hub.handle(a, command(room, "rematch"));
+  hub.handle(b, command(room, "rematch"));
+  assert.deepEqual(room.seriesScores, [1, 0]);
+  room.match.state = "GAME_OVER";
+  room.match.mode.winner = 1;
+  room.broadcast();
+  assert.deepEqual(room.seriesScores, [1, 1]);
+  const saved = b.messages.find((m) => m.type === "joined").resumeToken;
+  room.remove(b);
+  const resume = peer();
+  hub.handle(resume, { type: "join", roomId: room.id, resumeToken: saved });
+  assert.deepEqual(room.seriesScores, [1, 1]);
+  hub.handle(a, { type: "leave" });
+  assert.deepEqual(room.seriesScores, [0, 0]);
+});
+
+test("ball-in-hand can be repositioned repeatedly before shooting, never by opponent/viewer or after a shot", () => {
+  const { hub, a, b, room } = openRoom({}, "nine");
+  const viewer = peer();
+  hub.handle(viewer, { type: "join", roomId: room.id, spectate: true });
+  assert.throws(
+    () => hub.handle(a, command(room, "reposition")),
+    /quyền đặt bi/,
+  );
+  room.match.state = "BALL_IN_HAND";
+  room.match.cue.active = false;
+  hub.handle(a, command(room, "place", { x: -1.2, z: 0.5 }));
+  assert.equal(room.match.placementAllowed, true);
+  assert.throws(() => hub.handle(b, command(room, "reposition")), /lượt/);
+  assert.throws(
+    () => hub.handle(viewer, command(room, "reposition")),
+    /Khán giả/,
+  );
+  for (const [x, z] of [
+    [-1, -0.4],
+    [-1.7, 0.2],
+  ]) {
+    hub.handle(a, command(room, "reposition"));
+    assert.equal(room.match.state, "BALL_IN_HAND");
+    const before = { x: room.match.cue.x, z: room.match.cue.z };
+    assert.throws(
+      () => hub.handle(a, command(room, "place", { x: 99, z: 99 })),
+      /Đặt bi/,
+    );
+    assert.deepEqual({ x: room.match.cue.x, z: room.match.cue.z }, before);
+    hub.handle(a, command(room, "place", { x, z }));
+    assert.equal(room.match.cue.x, x);
+    assert.equal(room.match.cue.z, z);
+    assert.equal(room.snapshot().placementAllowed, true);
+  }
+  hub.handle(a, command(room, "shoot", shot));
+  assert.equal(room.match.placementAllowed, false);
+  assert.throws(
+    () => hub.handle(a, command(room, "reposition")),
+    /quyền đặt bi/,
+  );
+  assert.throws(
+    () => hub.handle(a, command(room, "place", { x: 0, z: 0 })),
+    /Đặt bi/,
+  );
 });

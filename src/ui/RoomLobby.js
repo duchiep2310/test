@@ -67,6 +67,7 @@ export class RoomLobby {
         type: "create",
         mode: $("#room-mode").value,
         targetScore: Number($("#room-target").value),
+        aimGuide: this.game.settings.aimGuide,
         name: this.name(),
       });
     };

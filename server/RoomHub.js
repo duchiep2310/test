@@ -32,6 +32,9 @@ export class RoomHub {
         if (data.resumeToken)
           throw new Error("Tạo phòng mới không nhận token ghế cũ.");
         const room = new Room(id, data.mode, target, this.options);
+        if (data.aimGuide != null && typeof data.aimGuide !== "boolean")
+          throw new Error("Thiết lập Aim guide không hợp lệ.");
+        room.aimGuide = data.aimGuide ?? true;
         room.join(peer, { name: data.name });
         this.rooms.set(id, room);
       } else {

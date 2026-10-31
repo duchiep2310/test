@@ -1,0 +1,216 @@
+.match-tools {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f7f8f0f5;
+  backdrop-filter: blur(8px);
+  border: 1px solid #dbe2cf;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px #314d2710;
+}
+.match-tools nav {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.match-tools button {
+  background: #f3f6e9;
+  border: 1px solid #d5dfc6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #617d48;
+  font-size: 11px;
+}
+.match-tools button:hover {
+  background: #e7efdb;
+}
+.camera-pad {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.camera-pad > span {
+  font-size: 9px;
+  color: #94a17e;
+  margin-right: 6px;
+}
+.camera-pad button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 19px;
+  touch-action: none;
+  user-select: none;
+}
+.series-scoreboard {
+  background: #f9faf3;
+  border: 1px solid #dce3d1;
+  border-radius: 7px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+}
+.series-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #8d9f79;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+}
+.series-heading small {
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+.series-duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  margin: 10px 0;
+}
+.series-duel strong {
+  font-size: 13px;
+  font-weight: 550;
+  color: #566e43;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.series-duel strong:last-child {
+  text-align: right;
+}
+.series-duel > span {
+  font:
+    30px Georgia,
+    serif;
+  color: #355e40;
+  letter-spacing: 4px;
+}
+.series-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  font-size: 9px;
+  color: #a0ac8f;
+  line-height: 1.6;
+}
+.series-meta button {
+  border: 0;
+  background: none;
+  color: #8a9b73;
+  white-space: nowrap;
+  font-size: 9px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cue-placement-tools {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  border: 1px solid #bbcfa3;
+  border-radius: 6px;
+  background: #eaf1df;
+  color: #69854f;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.cue-placement-tools button {
+  background: #466f3d;
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  padding: 10px 14px;
+  white-space: nowrap;
+}
+.result-series {
+  padding: 15px 0;
+  border-block: 1px solid #dfe5d2;
+  margin: 20px 0;
+}
+.result-series > small {
+  font-size: 8px;
+  color: #8e9f78;
+  letter-spacing: 1px;
+}
+.result-series > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 15px;
+  align-items: center;
+  margin-top: 12px;
+}
+.result-series span {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-series strong {
+  font: 30px Georgia;
+  color: #527447;
+}
+@media (max-width: 650px) {
+  .match-tools {
+    padding: 9px;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .match-tools nav {
+    flex: 1;
+    justify-content: space-between;
+    gap: 5px;
+  }
+  .match-tools nav button {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+  .camera-pad {
+    justify-content: center;
+    flex-basis: 100%;
+  }
+  .camera-pad button {
+    width: 38px;
+    height: 34px;
+  }
+  .camera-pad > span {
+    font-size: 9px;
+  }
+  .series-scoreboard {
+    padding: 12px 14px;
+  }
+  .series-duel {
+    gap: 12px;
+  }
+  .series-duel strong {
+    font-size: 11px;
+  }
+  .series-duel > span {
+    font-size: 27px;
+    letter-spacing: 2px;
+  }
+  .series-meta {
+    font-size: 8px;
+  }
+  .series-meta button {
+    font-size: 8px;
+  }
+  .cue-placement-tools {
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 10px;
+  }
+  .cue-placement-tools button {
+    font-size: 10px;
+  }
+}

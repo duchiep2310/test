@@ -23,9 +23,17 @@ Hoặc mở hai terminal: `npm start` (backend cổng 3001) và `npm run dev` (V
 - Kết thúc trận, cả hai người chơi phải đồng ý tái đấu. Người xem tiếp tục ở cùng phòng.
 - Phòng lưu trong RAM một tiến trình, mất khi server restart/ngủ/redeploy. Chưa có tài khoản, xác minh danh tính hay cơ sở dữ liệu; ai có mã có thể vào phòng. Không chạy nhiều instance độc lập nếu chưa bổ sung shared state và routing.
 
+## Điều hướng, tỉ số và đặt lại bi trắng
+
+Thanh điều hướng trên bàn mở nhanh **Sảnh chơi / Luật chơi / Đổi tên / Cài đặt**. Giữ các nút mũi tên trên thanh để di chuyển góc nhìn, dùng được trên màn hình cảm ứng.
+
+**Tỉ số đối đầu** là số ván mỗi người đã thắng, tách khỏi số bi/điểm trong ván. Online: máy chủ cộng đúng một lần khi có người thắng, giữ tỉ số qua tái đấu/nối lại; đổi người hoặc mất phòng khi server restart sẽ đặt lại. Offline: tỉ số lưu trên trình duyệt, tách local và AI; nút **Đặt lại tỉ số** xóa số ván thắng. Bảng kết quả cuối ván hiển thị cả tỉ số đối đầu và điểm ván.
+
+Sau lỗi cho quyền đặt bi trắng, nhấn lên bàn để đặt. Trước khi đánh, có thể chọn **Đặt lại bi trắng** rồi nhấn vị trí mới, lặp lại nhiều lần. Vị trí chồng bi/ngoài bàn vẫn bị từ chối; chỉ người tới lượt được đặt. Cú đánh hợp lệ bắt đầu sẽ khóa quyền đặt lại cho đến lần được cấp quyền tiếp theo.
+
 ## Aim guide
 
-Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Lựa chọn được ghi nhớ trên trình duyệt.
+Bật **Aim guide** để xem dự đoán va chạm và đường bật băng. Khi tắt, chỉ còn đoạn ngắn nối đầu cơ tới mặt bi trắng, không có đường dự đoán phía trước bi. Đoạn nối xoay theo cơ, thay đổi theo lực kéo và ẩn khi đang đánh/chờ bi dừng. Offline, lựa chọn được nhớ trên trình duyệt. Online, Aim guide là thiết lập chung của phòng: một trong hai người chơi đổi thì cả hai và khán giả nhận cùng trạng thái, kể cả vào sau hoặc tải lại trang. Khán giả không được đổi thiết lập của phòng.
 
 ## Góc nhìn và bàn lớn
 
@@ -73,7 +81,7 @@ npm run test:browser
 CHROMIUM_PATH=/usr/bin/chromium npm run test:browser
 ```
 
-Bản phòng online đã đạt 73 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 11 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
+Bản phòng online đã đạt 76 kiểm tra Node (vật lý, luật, AI và HTTP/WebSocket) cùng 13 luồng Chromium. Suite trình duyệt bao gồm gameplay năm chế độ, UI/cài đặt, bố cục 390px, scratch/đặt bi, thắng 8-ball, AI, sảnh và bốn phiên độc lập: hai người chơi, hai khán giả, nối lại ghế và nhận ghế trống. Không có lỗi JavaScript trong các luồng đạt. Kiểm tra offline tăng tốc bước mô phỏng; kiểm tra phòng dùng máy chủ và kết nối thật theo thời gian thực. Không dùng hoạt ảnh giả lập và chưa benchmark 200 người xem thật.
 
 ## Điều khiển
 

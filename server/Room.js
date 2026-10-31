@@ -15,6 +15,9 @@ export class Room {
     this.phase = "waiting";
     this.votes = new Set();
     this.sequence = 0;
+    this.aimGuide = true;
+    this.seriesScores = [0, 0];
+    this.lastScoredMatch = null;
     this.lastActive = Date.now();
     this.emptySince = Date.now();
     this.reconnectMs = options.reconnectMs ?? 60000;
@@ -121,6 +124,8 @@ export class Room {
     this.broadcast();
   }
   resetWaiting() {
+    this.seriesScores = [0, 0];
+    this.lastScoredMatch = null;
     this.phase = "waiting";
     this.votes.clear();
     this.match = new Match(this.modeId, this.targetScore);
@@ -142,7 +147,27 @@ export class Room {
       this.broadcast();
     }
   }
+  recordResult() {
+    const winner = this.match.mode.winner;
+    if (
+      this.match.state === "GAME_OVER" &&
+      (winner === 0 || winner === 1) &&
+      this.lastScoredMatch !== this.matchId
+    ) {
+      this.seriesScores[winner]++;
+      this.lastScoredMatch = this.matchId;
+    }
+  }
   command(peer, data) {
+    if (data.type === "aimGuide") {
+      if (this.seatOf(peer) < 0)
+        throw new Error("Khán giả không thể đổi Aim guide của phòng.");
+      if (typeof data.enabled !== "boolean")
+        throw new Error("Thiết lập Aim guide không hợp lệ.");
+      this.aimGuide = data.enabled;
+      this.broadcast();
+      return;
+    }
     if (data.type === "rename") {
       if (typeof data.name !== "string" || !data.name.trim())
         throw new Error("Vui lòng nhập tên người chơi.");
@@ -185,6 +210,7 @@ export class Room {
     if (data.matchId !== this.matchId)
       throw new Error("Trận đã thay đổi. Vui lòng thử lại.");
     if (data.type === "rematch") {
+      this.recordResult();
       if (this.match.state !== "GAME_OVER")
         throw new Error("Chỉ có thể tái đấu sau khi trận kết thúc.");
       this.votes.add(seat);
@@ -210,6 +236,11 @@ export class Room {
         this.dirty = true;
       } else if (!this.match.shoot(shot))
         throw new Error("Không thể thực hiện cú đánh.");
+    } else if (data.type === "reposition") {
+      if (!this.match.repositionCue())
+        throw new Error(
+          "Bạn chỉ được đặt lại bi trắng trước cú đánh khi có quyền đặt bi.",
+        );
     } else if (data.type === "place") {
       if (
         typeof data.x !== "number" ||
@@ -230,6 +261,7 @@ export class Room {
     if (before !== this.match.revision) this.broadcast();
   }
   snapshot() {
+    this.recordResult();
     const players = this.players.map((p) =>
       p
         ? {
@@ -249,6 +281,8 @@ export class Room {
       phase: this.phase,
       ready: this.ready,
       hostSeat: this.hostSeat,
+      aimGuide: this.aimGuide,
+      seriesScores: [...this.seriesScores],
       players,
       spectatorCount: this.spectators.size,
       spectators: [...this.spectators].slice(0, 12).map((p) => p.name),

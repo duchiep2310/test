@@ -37,6 +37,17 @@ export class Game {
         JSON.parse(localStorage.getItem("velvet-settings") || "{}"),
       );
     } catch {}
+    this.localSeries = { local: [0, 0], ai: [0, 0] };
+    try {
+      const saved = JSON.parse(localStorage.getItem("velvet-series") || "{}");
+      for (const key of ["local", "ai"])
+        if (
+          Array.isArray(saved[key]) &&
+          saved[key].length === 2 &&
+          saved[key].every((n) => Number.isSafeInteger(n) && n >= 0)
+        )
+          this.localSeries[key] = saved[key];
+    } catch {}
     this.scene = new SceneManager(container);
     this.audio = new AudioManager();
     this.ai = new AIController();
@@ -77,6 +88,8 @@ export class Game {
     this.state = this.mode.isBreak ? S.BREAK_SHOT : S.PLAYER_TURN;
     this.shotEvents = [];
     this.shots = 0;
+    this.placementAllowed = false;
+    this.resultRecorded = false;
     this.shotLog = [];
     this.cushions = 0;
     this.startedAt = Date.now();
@@ -150,13 +163,19 @@ export class Game {
     this.shotEvents = [];
     this.cushions = 0;
     this.settleTime = 0;
+    const previousState = this.state;
     this.state = S.SHOT_IN_PROGRESS;
-    this.physics.shoot(
+    const accepted = this.physics.shoot(
       this.shotCue,
       this.angle,
       Math.max(0.04, this.power),
       this.spin,
     );
+    if (!accepted) {
+      this.state = previousState;
+      return false;
+    }
+    this.placementAllowed = false;
     this.shots++;
     this.audio.play("cue", this.power);
     this.scene.animateShot?.();
@@ -229,6 +248,7 @@ export class Game {
     if (this.mode.winner != null || result.winner != null) {
       this.state = S.GAME_OVER;
       this.finishedAt = Date.now();
+      this.recordLocalResult();
       this.audio.play(
         this.mode.winner === 1 && this.settings.opponent === "ai"
           ? "lose"
@@ -237,6 +257,7 @@ export class Game {
       this.saveMatch();
     } else if (result.ballInHand) {
       this.state = S.FOUL;
+      this.placementAllowed = true;
       const cue = this.cue;
       cue.active = false;
       cue.vx = cue.vz = 0;
@@ -263,10 +284,20 @@ export class Game {
   }
   place(x, z, automatic = false) {
     if (this.online) return this.online.place(x, z);
-    if (!this.ballInHand || (!automatic && this.isAI)) return false;
+    if (
+      !(
+        this.ballInHand ||
+        (this.state === S.PLAYER_TURN && this.placementAllowed)
+      ) ||
+      this.physics.isMoving() ||
+      (!automatic && this.isAI)
+    )
+      return false;
     if (this.physics.placeBall(this.mode.cueId(), x, z)) {
+      this.placementAllowed = true;
       this.state = S.PLAYER_TURN;
-      this.message = "Cue ball placed. Choose your line and take the shot.";
+      this.message =
+        "Đã đặt bi trắng. Bạn có thể chọn Đặt lại bi trắng trước khi đánh.";
       this.aiDelay = 0.7;
       this.notify();
       return true;
@@ -275,6 +306,61 @@ export class Game {
       "Choose a clear spot inside the cushions, away from pockets and other balls.";
     this.notify();
     return false;
+  }
+  get canReposition() {
+    if (this.online)
+      return (
+        this.online.canAct &&
+        this.online.info?.placementAllowed &&
+        this.state === S.PLAYER_TURN
+      );
+    return (
+      this.placementAllowed &&
+      this.state === S.PLAYER_TURN &&
+      !this.isAI &&
+      !this.physics.isMoving()
+    );
+  }
+  repositionCue() {
+    if (!this.canReposition) return false;
+    if (this.online) return this.online.repositionCue();
+    this.state = S.BALL_IN_HAND;
+    this.message = "Nhấn vị trí trống để đặt lại bi trắng.";
+    this.notify();
+    return true;
+  }
+  get seriesScores() {
+    return (
+      this.online?.info?.seriesScores ||
+      this.localSeries[this.settings.opponent === "ai" ? "ai" : "local"]
+    );
+  }
+  recordLocalResult() {
+    const winner = this.mode.winner;
+    if (this.resultRecorded || (winner !== 0 && winner !== 1)) return;
+    this.resultRecorded = true;
+    this.seriesScores[winner]++;
+    this.persistSeries();
+  }
+  persistSeries() {
+    try {
+      localStorage.setItem("velvet-series", JSON.stringify(this.localSeries));
+    } catch {}
+  }
+  resetSeries() {
+    if (this.online) return;
+    this.seriesScores.fill(0);
+    this.persistSeries();
+    this.notify();
+  }
+  applySharedAimGuide(enabled) {
+    if (typeof enabled !== "boolean" || this.settings.aimGuide === enabled)
+      return;
+    this.settings.aimGuide = enabled;
+    this.scene.setSettings({ aimGuide: enabled });
+    try {
+      localStorage.setItem("velvet-settings", JSON.stringify(this.settings));
+    } catch {}
   }
   pause() {
     if (this.lobbyOpen) return false;
@@ -290,6 +376,16 @@ export class Game {
     this.notify();
   }
   setSettings(settings) {
+    if (this.online && typeof settings.aimGuide === "boolean") {
+      if (settings.aimGuide !== this.settings.aimGuide) {
+        if (this.online.seat == null || !this.online.connected)
+          this.online.error =
+            "Chỉ người chơi đang kết nối được đổi Aim guide của phòng.";
+        else this.online.command("aimGuide", { enabled: settings.aimGuide });
+      }
+      settings = { ...settings };
+      delete settings.aimGuide;
+    }
     Object.assign(this.settings, settings);
     this.scene.setSettings(this.settings);
     this.audio.setVolume(this.settings.volume);
@@ -342,6 +438,7 @@ export class Game {
         mode: MODES.find((m) => m.id === this.mode.id).name,
         winner: this.playerName(this.mode.winner),
         scores: this.mode.scores,
+        seriesScores: [...this.seriesScores],
         duration: this.elapsed,
         date: new Date().toISOString(),
       });

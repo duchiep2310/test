@@ -149,6 +149,26 @@ test("scratch triggers ball-in-hand, placement rejects overlap and accepts table
   await page.mouse.click(p.x, p.y);
   expect(await page.evaluate(() => window.__game.state)).toBe("PLAYER_TURN");
   expect(await page.evaluate(() => window.__game.cue.active)).toBe(true);
+  await page.locator("#reposition-cue").click();
+  expect(await page.evaluate(() => window.__game.state)).toBe("BALL_IN_HAND");
+  const p2 = await page.evaluate(() => {
+    const g = window.__game,
+      v = g.scene.camera.position
+        .clone()
+        .set(-1.8, 0, 0.5)
+        .project(g.scene.camera),
+      r = g.scene.canvas.getBoundingClientRect();
+    return {
+      x: r.left + ((v.x + 1) * r.width) / 2,
+      y: r.top + ((1 - v.y) * r.height) / 2,
+    };
+  });
+  await page.mouse.click(p2.x, p2.y);
+  expect(await page.evaluate(() => window.__game.cue.x)).toBeCloseTo(-1.8, 4);
+  expect(await page.evaluate(() => window.__game.canReposition)).toBe(true);
+  await page.locator("#shoot").click();
+  expect(await page.evaluate(() => window.__game.placementAllowed)).toBe(false);
+  expect(await page.evaluate(() => window.__game.repositionCue())).toBe(false);
 });
 
 test("called final eight is resolved from physical pocket events and saved to history", async ({
@@ -185,6 +205,13 @@ test("called final eight is resolved from physical pocket events and saved to hi
       () => JSON.parse(localStorage.getItem("velvet-history")).length,
     ),
   ).toBe(1);
+  await expect(page.locator("#series-values")).toHaveText("1 — 0");
+  await expect(page.locator(".result-series")).toContainText("1 — 0");
+  await page.locator("#result-replay").click();
+  await expect(page.locator("#series-values")).toHaveText("1 — 0");
+  await page.reload();
+  await page.locator("#play-local").click();
+  await expect(page.locator("#series-values")).toHaveText("1 — 0");
 });
 
 test("AI takes the next turn using the same engine", async ({ page }) => {
@@ -385,4 +412,40 @@ test("disabled aim guide shows only the cue-tip to cue-ball segment and remember
       !window.__game.scene.cueGapLine.visible &&
       !window.__game.scene.guideGroup.visible,
   );
+});
+
+test("navigation bar opens screens, pans camera by holding arrows and fits mobile", async ({
+  page,
+}) => {
+  await offline(page);
+  await expect(page.locator("#match-tools")).toBeVisible();
+  const rect = await page.locator("[data-camera=KeyD]").boundingBox();
+  await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await page.mouse.down();
+  await page.waitForFunction(() => window.__game.scene.target.x > 0.03);
+  await page.mouse.up();
+  const x = await page.evaluate(() => window.__game.scene.target.x);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => window.__game.scene.target.x)).toBe(x);
+  await page.locator("#tools-rules").click();
+  await expect(page.locator("#modal")).toBeVisible();
+  await page.locator("#close-modal").click();
+  await page.locator("#tools-names").click();
+  await expect(page.locator("#names-dialog")).toBeVisible();
+  await page.locator("#close-names").click();
+  await page.locator("#tools-settings").click();
+  await expect(page.locator("#settings-form")).toBeVisible();
+  await page.locator("#close-modal").click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "test-results/navigation-scores.png",
+    fullPage: true,
+  });
+  await page.locator("#tools-lobby").click();
+  await expect(page.locator("#room-lobby")).toBeVisible();
 });

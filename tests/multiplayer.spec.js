@@ -224,3 +224,162 @@ test("player names work offline, persist and support both local seats", async ({
   await page.locator("#play-local").click();
   await expect(page.locator("#player-cards")).toContainText("Trần Bình");
 });
+
+// A private test fixture changes the server's starting balls. No debug endpoint is exposed.
+test("shared aim, aggregate scores, rematch and repeat cue placement sync across players and viewers", async ({
+  browser,
+}) => {
+  test.setTimeout(120000);
+  const { createRoomServer } = await import("../server/index.js");
+  const app = createRoomServer();
+  await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
+  const url = "http://127.0.0.1:" + app.server.address().port,
+    clients = [],
+    errors = [];
+  async function join(name) {
+    const context = await browser.newContext({
+      viewport: { width: 900, height: 750 },
+    });
+    clients.push(context);
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "velvet-settings",
+        JSON.stringify({ quality: "low" }),
+      ),
+    );
+    await page.goto(url);
+    await page.locator("#room-name").fill(name);
+    return page;
+  }
+  async function place(page, x, z) {
+    await page.locator("canvas").scrollIntoViewIfNeeded();
+    const p = await page.evaluate(
+      ({ x, z }) => {
+        const s = window.__game.scene,
+          v = s.camera.position.clone().set(x, 0, z).project(s.camera),
+          r = s.canvas.getBoundingClientRect();
+        return {
+          x: r.left + ((v.x + 1) * r.width) / 2,
+          y: r.top + ((1 - v.y) * r.height) / 2,
+        };
+      },
+      { x, z },
+    );
+    await page.mouse.click(p.x, p.y);
+    await page.waitForFunction(
+      ({ x, z }) =>
+        Math.abs(window.__game.cue.x - x) < 0.001 &&
+        Math.abs(window.__game.cue.z - z) < 0.001 &&
+        window.__game.state === "PLAYER_TURN",
+      { x, z },
+    );
+  }
+  try {
+    const a = await join("An");
+    await a.locator("#room-mode").selectOption("nine");
+    await a.locator("#create-room").click();
+    await expect(a.locator("#online-room")).toBeVisible();
+    const id = await a.locator("#current-room-code").textContent(),
+      room = app.hub.rooms.get(id);
+    const b = await join("Bình");
+    await b.locator("#room-code").fill(id);
+    await b.locator("[data-role=player]").click();
+    await a.waitForFunction(() => window.__game.online?.info?.ready);
+    const viewer = await join("Khán giả");
+    await viewer.locator("#room-code").fill(id);
+    await viewer.locator("[data-role=spectator]").click();
+    await expect(viewer.locator("#online-room")).toBeVisible();
+    await b.locator("#guide-toggle").click();
+    for (const p of [a, b, viewer])
+      await p.waitForFunction(() => window.__game.settings.aimGuide === false);
+    await expect(viewer.locator("#guide-toggle")).toBeDisabled();
+    await a.locator("#guide-toggle").click();
+    await b.waitForFunction(() => window.__game.settings.aimGuide === true);
+    await b.locator("#guide-toggle").click();
+    await a.waitForFunction(() => window.__game.settings.aimGuide === false);
+    room.match.mode.isBreak = false;
+    room.match.physics.setBalls([
+      { id: 0, x: 0, z: 0 },
+      { id: 9, x: 0, z: -0.7 },
+    ]);
+    room.match.state = "PLAYER_TURN";
+    room.match.revision++;
+    room.broadcast();
+    await a.waitForFunction(
+      () =>
+        window.__game.physics.balls.length === 2 && !window.__game.mode.isBreak,
+    );
+    await a.evaluate(() => {
+      const g = window.__game;
+      g.angle = -Math.PI / 2;
+      g.power = 0.38;
+      g.notify();
+    });
+    await a.locator("#shoot").click();
+    await a.waitForFunction(() => window.__game.state === "GAME_OVER");
+    for (const p of [a, b, viewer]) {
+      await expect(p.locator("#series-values")).toHaveText("1 — 0");
+      await expect(p.locator(".result-series")).toContainText("1 — 0");
+    }
+    await a.locator("#result-replay").click();
+    await b.locator("#result-replay").click();
+    await a.waitForFunction(() => window.__game.state === "BREAK_SHOT");
+    await expect(viewer.locator("#modal")).not.toBeVisible();
+    for (const p of [a, b, viewer]) {
+      await expect(p.locator("#series-values")).toHaveText("1 — 0");
+      expect(await p.evaluate(() => window.__game.settings.aimGuide)).toBe(
+        false,
+      );
+    }
+    room.match.mode.isBreak = false;
+    room.match.physics.setBalls([
+      { id: 0, x: 0, z: 0 },
+      { id: 1, x: 1, z: 0 },
+      { id: 9, x: 1.6, z: 0 },
+    ]);
+    room.match.state = "PLAYER_TURN";
+    room.match.revision++;
+    room.broadcast();
+    await a.waitForFunction(
+      () =>
+        window.__game.physics.balls.length === 3 && !window.__game.mode.isBreak,
+    );
+    await a.evaluate(() => {
+      const g = window.__game;
+      g.angle = -Math.PI / 2;
+      g.power = 0.5;
+      g.notify();
+    });
+    await a.locator("#shoot").click();
+    await b.waitForFunction(() => window.__game.state === "BALL_IN_HAND");
+    await place(b, -1, 0.4);
+    await expect(b.locator("#reposition-cue")).toBeVisible();
+    await expect(a.locator("#reposition-cue")).not.toBeVisible();
+    await b.locator("#reposition-cue").click();
+    await b.waitForFunction(() => window.__game.state === "BALL_IN_HAND");
+    await place(b, -1.8, -0.5);
+    for (const p of [a, viewer])
+      await p.waitForFunction(
+        () =>
+          Math.abs(window.__game.cue.x + 1.8) < 0.001 &&
+          Math.abs(window.__game.cue.z + 0.5) < 0.001,
+      );
+    await b.evaluate(() => {
+      const g = window.__game;
+      g.angle = Math.atan2(0.5, 2.8);
+      g.power = 0.5;
+      g.notify();
+    });
+    await b.locator("#shoot").click();
+    await b.waitForFunction(() => window.__game.state === "SHOT_IN_PROGRESS");
+    expect(room.match.placementAllowed).toBe(false);
+    await expect(b.locator("#reposition-cue")).not.toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    for (const c of clients) await c.close();
+    await app.close();
+  }
+});
